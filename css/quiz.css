@@ -1,0 +1,114 @@
+.quiz-setup {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  max-width: 480px;
+}
+
+.quiz-progress {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.quiz-question {
+  font-size: 1.15rem;
+  margin-bottom: var(--space-lg);
+}
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.quiz-option {
+  text-align: left;
+  padding: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.quiz-option:hover {
+  border-color: var(--accent);
+}
+
+.quiz-option.selected {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.quiz-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.quiz-score-card {
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-lg);
+}
+
+.quiz-score-big {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.quiz-score-percentage {
+  color: var(--text-secondary);
+}
+
+.quiz-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.quiz-review-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--success);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+}
+
+.quiz-review-item.incorrect {
+  border-left-color: var(--danger);
+}
+
+.quiz-review-question {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.quiz-review-answer {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.quiz-review-correct {
+  font-size: 0.9rem;
+  color: var(--success);
+  margin-bottom: 4px;
+}
+
+.quiz-review-explanation {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}

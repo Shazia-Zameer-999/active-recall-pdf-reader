@@ -1,0 +1,41 @@
+:root {
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
+
+body[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f6f8;
+  --bg-card: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+body[data-theme="dark"] {
+  --bg-primary: #121212;
+  --bg-secondary: #1c1c1e;
+  --bg-card: #1e1e20;
+  --text-primary: #f2f2f2;
+  --text-secondary: #a1a1aa;
+  --border-color: #2c2c2e;
+  --accent: #818cf8;
+  --accent-hover: #6366f1;
+  --success: #4ade80;
+  --danger: #f87171;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}

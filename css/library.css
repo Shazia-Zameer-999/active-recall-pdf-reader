@@ -1,0 +1,111 @@
+.drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  text-align: center;
+  background: var(--bg-card);
+  margin-bottom: var(--space-lg);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.drop-zone-active {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+}
+
+.drop-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.drop-text {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+#upload-status {
+  margin-bottom: var(--space-md);
+}
+
+.status-info { color: var(--text-secondary); }
+.status-success { color: var(--success); }
+.status-error { color: var(--danger); }
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.pdf-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-sm);
+  position: relative;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pdf-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.pdf-card-icon {
+  font-size: 2.5rem;
+}
+
+.pdf-card-info {
+  width: 100%;
+}
+
+.pdf-card-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pdf-card-date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.pdf-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.pdf-card-delete:hover {
+  opacity: 1;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: var(--space-sm);
+}

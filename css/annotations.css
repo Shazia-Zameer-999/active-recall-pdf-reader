@@ -1,0 +1,180 @@
+.annotation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.ann-tool-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.ann-tool-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.color-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.color-swatch.active {
+  border-color: var(--text-primary);
+}
+
+.reader-body {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.annotations-panel {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  max-height: 80vh;
+  overflow-y: auto;
+  position: sticky;
+  top: var(--space-md);
+}
+
+.annotations-panel h4 {
+  margin-bottom: var(--space-sm);
+  font-size: 0.9rem;
+}
+
+.annotations-empty {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.annotation-panel-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.annotation-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.annotation-panel-label {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-panel-delete {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+
+.annotation-panel-delete:hover {
+  opacity: 1;
+}
+
+/* --- Layered canvas/text/sticky structure --- */
+.pdf-page-wrapper {
+  position: relative;
+}
+
+#pdf-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.annotation-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.textLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.textLayer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.textLayer ::selection {
+  background: rgba(79, 70, 229, 0.35);
+}
+
+.sticky-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  cursor: crosshair;
+}
+
+.sticky-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+@media (max-width: 900px) {
+  .reader-body {
+    flex-direction: column;
+  }
+  .annotations-panel {
+    width: 100%;
+    position: static;
+    max-height: 200px;
+  }
+}
