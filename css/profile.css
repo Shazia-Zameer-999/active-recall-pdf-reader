@@ -1,0 +1,62 @@
+.profile-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  max-width: 420px;
+}
+
+.profile-avatar-picker {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.avatar-option {
+  width: 44px;
+  height: 44px;
+  font-size: 1.4rem;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-selected {
+  border-color: var(--accent);
+  background: var(--bg-card);
+}
+
+.profile-member-since {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.danger-zone {
+  margin-top: var(--space-xl);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  max-width: 420px;
+}
+
+.danger-zone-title {
+  color: var(--danger);
+  font-size: 0.95rem;
+  margin-bottom: var(--space-sm);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  margin-top: var(--space-sm);
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}

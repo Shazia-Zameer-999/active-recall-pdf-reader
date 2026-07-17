@@ -157,3 +157,45 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+.due-badge {
+  background: var(--danger);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
+.flashcard-due-label {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.rating-buttons {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: center;
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.rating-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+}
+
+.rating-again { background: #dc2626; }
+.rating-hard { background: #ea580c; }
+.rating-good { background: #16a34a; }
+.rating-easy { background: #2563eb; }
+
+.rating-btn:hover {
+  opacity: 0.85;
+}

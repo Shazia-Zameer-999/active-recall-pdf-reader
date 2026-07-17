@@ -39,9 +39,15 @@ const ActiveRecall = {
       }
 
       this.renderModal('question', { card, pageText, pageNumber });
-    } catch (error) {
+   } catch (error) {
       console.error('Active Recall generation failed:', error);
-      this.closeModal(); // fail silently — don't interrupt reading over an AI hiccup
+
+      const friendlyMessage =
+        error.message === 'RATE_LIMIT' || error.message === 'Request timed out — Gemini took too long to respond'
+          ? 'The AI is briefly busy (free-tier limit). This clears itself within a minute — try again shortly.'
+          : 'Something went wrong generating a question.';
+
+      this.renderModal('error', { message: friendlyMessage });
     }
   },
 

@@ -1,12 +1,14 @@
 window.Pages.Flashcards = {
   state: {
-    mode: 'list', // 'list' | 'study'
+    mode: 'list', // 'list' | 'study' | 'review'
     studyDeck: [],
     studyIndex: 0,
     isFlipped: false,
   },
 
   render() {
+    const dueCount = SpacedRepetition.getDueCards(Storage.getFlashcards()).length;
+
     return `
       <div class="page-header">
         <h1>Flashcards</h1>
@@ -19,7 +21,10 @@ window.Pages.Flashcards = {
         </select>
         <button id="generate-btn" class="btn btn-primary">✨ Generate from PDF</button>
         <button id="add-manual-btn" class="btn btn-secondary-sm">+ Add Card</button>
-        <button id="study-mode-btn" class="btn btn-secondary-sm">📖 Study Mode</button>
+        <button id="study-mode-btn" class="btn btn-secondary-sm">📖 Shuffle Study</button>
+        <button id="review-mode-btn" class="btn btn-primary">
+          🔁 Review Due ${dueCount > 0 ? `<span class="due-badge">${dueCount}</span>` : ''}
+        </button>
       </div>
 
       <div id="generate-status"></div>
@@ -34,7 +39,8 @@ window.Pages.Flashcards = {
     await this.populatePdfSelect();
     document.getElementById('generate-btn').addEventListener('click', () => this.generateFromPdf());
     document.getElementById('add-manual-btn').addEventListener('click', () => this.showManualForm());
-    document.getElementById('study-mode-btn').addEventListener('click', () => this.enterStudyMode());
+    document.getElementById('study-mode-btn').addEventListener('click', () => this.enterStudyMode(false));
+    document.getElementById('review-mode-btn').addEventListener('click', () => this.enterStudyMode(true));
 
     this.state.mode = 'list';
     this.renderList();
@@ -52,7 +58,6 @@ window.Pages.Flashcards = {
     });
   },
 
-  // Extracts all text from a PDF, page by page, using OCR fallback + cache where needed
   async extractFullPdfText(pdfId, statusEl) {
     const record = await DB.getPDF(pdfId);
     if (!record) throw new Error('PDF not found');
@@ -61,7 +66,6 @@ window.Pages.Flashcards = {
     const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
     let fullText = '';
-    // Cap at 20 pages worth of text — enough for a solid deck without an excessive Gemini prompt
     const pagesToScan = Math.min(pdfDoc.numPages, 20);
 
     for (let i = 1; i <= pagesToScan; i++) {
@@ -121,6 +125,11 @@ window.Pages.Flashcards = {
         pdfId,
         favorite: false,
         createdAt: Date.now(),
+        // Spaced repetition fields — new cards are due immediately
+        dueDate: Date.now(),
+        interval: 0,
+        easeFactor: 2.5,
+        repetitions: 0,
       }));
 
       Storage.saveFlashcards(cardsToSave);
@@ -129,6 +138,7 @@ window.Pages.Flashcards = {
       setTimeout(() => { statusEl.innerHTML = ''; }, 2500);
 
       this.renderList();
+      this.refreshDueBadge();
     } catch (error) {
       console.error('Flashcard generation failed:', error);
       statusEl.innerHTML = `<p class="status-error">Generation failed. Please try again.</p>`;
@@ -165,10 +175,15 @@ window.Pages.Flashcards = {
         pdfId: null,
         favorite: false,
         createdAt: Date.now(),
+        dueDate: Date.now(),
+        interval: 0,
+        easeFactor: 2.5,
+        repetitions: 0,
       });
 
       container.innerHTML = '';
       this.renderList();
+      this.refreshDueBadge();
     });
   },
 
@@ -197,6 +212,7 @@ window.Pages.Flashcards = {
             </button>
             <p class="flashcard-item-question">${card.question}</p>
             <p class="flashcard-item-answer">${card.answer}</p>
+            <p class="flashcard-due-label">${this.formatDueLabel(card.dueDate)}</p>
             <button class="flashcard-delete" data-id="${card.id}">🗑️</button>
           </div>
         `
@@ -220,14 +236,40 @@ window.Pages.Flashcards = {
         const id = btn.getAttribute('data-id');
         Storage.deleteFlashcard(id);
         this.renderList();
+        this.refreshDueBadge();
       });
     });
   },
 
-  enterStudyMode() {
-    let deck = Storage.getFlashcards();
-    if (deck.length === 0) {
-      alert('No flashcards to study yet. Generate or add some first.');
+  formatDueLabel(dueDate) {
+    if (!dueDate) return '🆕 New';
+    const now = Date.now();
+    if (dueDate <= now) return '🔁 Due now';
+    const days = Math.ceil((dueDate - now) / (24 * 60 * 60 * 1000));
+    return `📅 Due in ${days} day${days === 1 ? '' : 's'}`;
+  },
+
+  refreshDueBadge() {
+    const btn = document.getElementById('review-mode-btn');
+    if (!btn) return;
+    const dueCount = SpacedRepetition.getDueCards(Storage.getFlashcards()).length;
+    btn.innerHTML = `🔁 Review Due ${dueCount > 0 ? `<span class="due-badge">${dueCount}</span>` : ''}`;
+  },
+
+  // isReviewMode: true = spaced repetition (only due cards, rating buttons)
+  //               false = shuffle study (all cards, simple flip)
+  enterStudyMode(isReviewMode) {
+    const allCards = Storage.getFlashcards();
+
+    if (allCards.length === 0) {
+      alert('No flashcards yet. Generate or add some first.');
+      return;
+    }
+
+    let deck = isReviewMode ? SpacedRepetition.getDueCards(allCards) : [...allCards];
+
+    if (isReviewMode && deck.length === 0) {
+      alert('No cards due for review right now — nice work staying on top of it!');
       return;
     }
 
@@ -237,7 +279,7 @@ window.Pages.Flashcards = {
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
 
-    this.state.mode = 'study';
+    this.state.mode = isReviewMode ? 'review' : 'study';
     this.state.studyDeck = deck;
     this.state.studyIndex = 0;
     this.state.isFlipped = false;
@@ -246,12 +288,13 @@ window.Pages.Flashcards = {
 
   renderStudyMode() {
     const content = document.getElementById('flashcards-content');
-    const { studyDeck, studyIndex, isFlipped } = this.state;
+    const { studyDeck, studyIndex, isFlipped, mode } = this.state;
     const card = studyDeck[studyIndex];
+    const isReviewMode = mode === 'review';
 
     content.innerHTML = `
       <div class="study-mode">
-        <p class="study-progress">Card ${studyIndex + 1} of ${studyDeck.length}</p>
+        <p class="study-progress">Card ${studyIndex + 1} of ${studyDeck.length} ${isReviewMode ? '— Review Mode' : ''}</p>
 
         <div id="study-card" class="study-card ${isFlipped ? 'flipped' : ''}">
           <div class="study-card-face study-card-front">
@@ -262,13 +305,27 @@ window.Pages.Flashcards = {
           </div>
         </div>
 
-        <p class="study-hint">Click the card to flip it</p>
+        ${
+          !isFlipped
+            ? `<p class="study-hint">Click the card to reveal the answer</p>`
+            : isReviewMode
+            ? `
+              <p class="study-hint">How well did you know this?</p>
+              <div class="rating-buttons">
+                <button class="rating-btn rating-again" data-rating="0">Again</button>
+                <button class="rating-btn rating-hard" data-rating="1">Hard</button>
+                <button class="rating-btn rating-good" data-rating="2">Good</button>
+                <button class="rating-btn rating-easy" data-rating="3">Easy</button>
+              </div>
+            `
+            : `<p class="study-hint">Click the card to flip back</p>`
+        }
 
         <div class="study-controls">
-          <button id="study-prev-btn" class="btn btn-secondary-sm" ${studyIndex === 0 ? 'disabled' : ''}>◀ Previous</button>
+          ${!isReviewMode ? `<button id="study-prev-btn" class="btn btn-secondary-sm" ${studyIndex === 0 ? 'disabled' : ''}>◀ Previous</button>` : ''}
           <button id="study-shuffle-btn" class="btn btn-secondary-sm">🔀 Shuffle</button>
-          <button id="study-exit-btn" class="btn btn-secondary-sm">Exit Study</button>
-          <button id="study-next-btn" class="btn btn-primary" ${studyIndex === studyDeck.length - 1 ? 'disabled' : ''}>Next ▶</button>
+          <button id="study-exit-btn" class="btn btn-secondary-sm">Exit</button>
+          ${!isReviewMode ? `<button id="study-next-btn" class="btn btn-primary" ${studyIndex === studyDeck.length - 1 ? 'disabled' : ''}>Next ▶</button>` : ''}
         </div>
       </div>
     `;
@@ -278,29 +335,54 @@ window.Pages.Flashcards = {
       this.renderStudyMode();
     });
 
-    document.getElementById('study-prev-btn').addEventListener('click', () => {
-      if (this.state.studyIndex > 0) {
-        this.state.studyIndex--;
-        this.state.isFlipped = false;
-        this.renderStudyMode();
+    if (!isReviewMode) {
+      const prevBtn = document.getElementById('study-prev-btn');
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          if (this.state.studyIndex > 0) {
+            this.state.studyIndex--;
+            this.state.isFlipped = false;
+            this.renderStudyMode();
+          }
+        });
       }
-    });
 
-    document.getElementById('study-next-btn').addEventListener('click', () => {
-      if (this.state.studyIndex < this.state.studyDeck.length - 1) {
-        this.state.studyIndex++;
-        this.state.isFlipped = false;
-        this.renderStudyMode();
-      }
-    });
+      document.getElementById('study-next-btn').addEventListener('click', () => {
+        if (this.state.studyIndex < this.state.studyDeck.length - 1) {
+          this.state.studyIndex++;
+          this.state.isFlipped = false;
+          this.renderStudyMode();
+        }
+      });
+    } else {
+      content.querySelectorAll('.rating-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rating = parseInt(btn.getAttribute('data-rating'), 10);
+          const updatedCard = SpacedRepetition.review(card, rating);
+          Storage.saveFlashcard(updatedCard);
+
+          if (this.state.studyIndex < this.state.studyDeck.length - 1) {
+            this.state.studyIndex++;
+            this.state.isFlipped = false;
+            this.renderStudyMode();
+          } else {
+            alert('Review session complete! 🎉');
+            this.state.mode = 'list';
+            this.renderList();
+            this.refreshDueBadge();
+          }
+        });
+      });
+    }
 
     document.getElementById('study-shuffle-btn').addEventListener('click', () => {
-      this.enterStudyMode();
+      this.enterStudyMode(isReviewMode);
     });
 
     document.getElementById('study-exit-btn').addEventListener('click', () => {
       this.state.mode = 'list';
       this.renderList();
+      this.refreshDueBadge();
     });
   },
 };

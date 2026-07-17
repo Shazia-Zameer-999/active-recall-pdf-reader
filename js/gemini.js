@@ -1,23 +1,31 @@
 const Gemini = {
-  BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
+  // Calls our own serverless function instead of Google directly.
+  // The API key is no longer here — it lives on the server now.
+  FUNCTION_URL: '/.netlify/functions/gemini',
 
-  async generateText(prompt) {
-   const model = CONFIG.GEMINI_MODEL || 'gemini-3.5-flash';
-    const url = `${this.BASE_URL}/${model}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-
+  async generateText(prompt, retriesLeft = 2) {
     try {
-      const response = await fetch(url, {
+      const response = await fetch(this.FUNCTION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        body: JSON.stringify({ prompt, model: CONFIG.GEMINI_MODEL }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody?.error?.message || `Gemini API error: ${response.status}`);
+        const message = data?.error || `Gemini API error: ${response.status}`;
+        const isRateLimit = message === 'RATE_LIMIT';
+
+        if (isRateLimit && retriesLeft > 0) {
+          console.warn(`Gemini rate-limited, retrying in 5s... (${retriesLeft} retries left)`);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          return this.generateText(prompt, retriesLeft - 1);
+        }
+
+        throw new Error(isRateLimit ? 'RATE_LIMIT' : message);
       }
 
-      const data = await response.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error('Gemini returned an empty response');
       return text;

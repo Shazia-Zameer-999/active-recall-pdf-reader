@@ -181,7 +181,7 @@ const Annotations = {
     annotations.forEach((a) => {
       if (a.type === 'highlight') {
         ctx.fillStyle = a.color;
-        ctx.globalAlpha = 0.4;
+        ctx.globalAlpha = 0.25;
         a.rects.forEach((r) => {
           ctx.fillRect(r.x * scale, r.y * scale, r.width * scale, r.height * scale);
         });

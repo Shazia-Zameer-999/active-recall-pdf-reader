@@ -23,14 +23,18 @@ window.Pages.Library = {
         <button id="browse-btn" class="btn btn-primary">Browse Files</button>
       </div>
 
-      <div id="upload-status"></div>
+     <div id="upload-status"></div>
+
+      <div class="library-view-toggle">
+        <button id="view-pdfs-btn" class="btn btn-secondary-sm active-view">📚 My PDFs</button>
+        <button id="view-bookmarks-btn" class="btn btn-secondary-sm">📑 Bookmarks</button>
+      </div>
 
       <div id="library-grid" class="library-grid">
         <p class="placeholder-content">Loading your PDFs...</p>
       </div>
     `;
   },
-
   async afterRender() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -65,8 +69,91 @@ window.Pages.Library = {
       }
     });
 
+ document.getElementById('view-pdfs-btn').addEventListener('click', () => {
+      document.getElementById('view-pdfs-btn').classList.add('active-view');
+      document.getElementById('view-bookmarks-btn').classList.remove('active-view');
+      this.renderGrid();
+    });
+
+    document.getElementById('view-bookmarks-btn').addEventListener('click', () => {
+      document.getElementById('view-bookmarks-btn').classList.add('active-view');
+      document.getElementById('view-pdfs-btn').classList.remove('active-view');
+      this.renderBookmarksView();
+    });
+
     // --- Load and render the existing PDF grid ---
     await this.renderGrid();
+  },
+
+  renderBookmarksView() {
+    const grid = document.getElementById('library-grid');
+    const bookmarks = Storage.getBookmarks();
+
+    if (bookmarks.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <span class="empty-icon">📑</span>
+          <p>No bookmarks yet. Open a PDF in the Reader and click "Bookmark" to add one.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Group by folder
+    const grouped = {};
+    bookmarks.forEach((b) => {
+      const folder = b.folder || 'General';
+      if (!grouped[folder]) grouped[folder] = [];
+      grouped[folder].push(b);
+    });
+
+    grid.innerHTML = `
+      <div class="bookmarks-list">
+        ${Object.keys(grouped)
+          .map(
+            (folder) => `
+          <div class="bookmark-folder">
+            <h4 class="bookmark-folder-title">📁 ${folder}</h4>
+            <div class="bookmark-items">
+              ${grouped[folder]
+                .map(
+                  (b) => `
+                <div class="bookmark-item" data-pdf-id="${b.pdfId}" data-page="${b.page}">
+                  <span class="bookmark-color-dot" style="background:${b.color}"></span>
+                  <div class="bookmark-item-info">
+                    <p class="bookmark-item-label">${b.label}</p>
+                    <p class="bookmark-item-meta">${b.pdfName} — Page ${b.page}</p>
+                  </div>
+                  <button class="bookmark-delete-btn" data-id="${b.id}">🗑️</button>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+          )
+          .join('')}
+      </div>
+    `;
+
+    grid.querySelectorAll('.bookmark-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('bookmark-delete-btn')) return;
+        const pdfId = item.getAttribute('data-pdf-id');
+        const page = item.getAttribute('data-page');
+        Router.navigate(`/reader?id=${pdfId}&page=${page}`);
+      });
+    });
+
+    grid.querySelectorAll('.bookmark-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        Storage.deleteBookmark(id);
+        this.renderBookmarksView();
+      });
+    });
   },
 
   async handleFile(file, statusEl) {

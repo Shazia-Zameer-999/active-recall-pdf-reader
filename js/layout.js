@@ -34,6 +34,7 @@ const Layout = {
 
         <div class="main-column">
           <header class="topbar">
+            <button id="timer-toggle-btn" class="icon-btn" title="Pomodoro Timer">⏱️</button>
             <button id="theme-toggle-btn" class="icon-btn" title="Toggle theme">
               <span id="theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
             </button>
@@ -52,6 +53,11 @@ const Layout = {
         document.getElementById('theme-icon').textContent =
           Theme.current() === 'dark' ? '☀️' : '🌙';
       });
+    }
+
+    const timerBtn = document.getElementById('timer-toggle-btn');
+    if (timerBtn) {
+      timerBtn.addEventListener('click', () => Timer.toggleVisibility());
     }
   },
 };

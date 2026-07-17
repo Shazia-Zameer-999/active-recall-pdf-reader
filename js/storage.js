@@ -10,6 +10,7 @@ const Storage = {
     READING_HISTORY: 'recall_reading_history',
     OCR_CACHE: 'recall_ocr_cache',
     ANNOTATIONS: 'recall_annotations',
+     DAILY_STUDY: 'recall_daily_study',
   },
 
   _get(key, fallback) {
@@ -156,6 +157,21 @@ const Storage = {
       pdfAnnotations[pageNum].forEach((a) => flat.push({ ...a, pageNumber: parseInt(pageNum, 10) }));
     });
     return flat.sort((a, b) => a.pageNumber - b.pageNumber);
+  },
+  // --- Daily study time tracking: { 'YYYY-MM-DD': minutesSpent } ---
+  getDailyStudyMap() {
+    return this._get(this.KEYS.DAILY_STUDY, {});
+  },
+  addStudyMinutes(minutes) {
+    const map = this.getDailyStudyMap();
+    const today = new Date().toISOString().slice(0, 10);
+    map[today] = (map[today] || 0) + minutes;
+    this._set(this.KEYS.DAILY_STUDY, map);
+  },
+  getTodayStudyMinutes() {
+    const map = this.getDailyStudyMap();
+    const today = new Date().toISOString().slice(0, 10);
+    return map[today] || 0;
   },
 
   generateId() {
