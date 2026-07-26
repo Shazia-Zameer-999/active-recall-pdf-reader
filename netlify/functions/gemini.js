@@ -3,13 +3,18 @@
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+    return {
+      statusCode: 405,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Method Not Allowed' }),
+    };
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return {
       statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Server misconfigured: GEMINI_API_KEY is not set in Netlify' }),
     };
   }
@@ -18,15 +23,23 @@ exports.handler = async function (event) {
   try {
     payload = JSON.parse(event.body);
   } catch (e) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) };
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Invalid JSON body' }),
+    };
   }
 
   const { prompt, model } = payload;
   if (!prompt) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing "prompt" in request body' }) };
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Missing "prompt" in request body' }),
+    };
   }
 
-  const chosenModel = model || 'gemini-3.5-flash';
+  const chosenModel = model || 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${apiKey}`;
 
   try {
@@ -43,18 +56,13 @@ exports.handler = async function (event) {
       const isRateLimit = response.status === 429 || message.toLowerCase().includes('quota');
       return {
         statusCode: response.status,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: isRateLimit ? 'RATE_LIMIT' : message }),
       };
     }
 
     return {
       statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     };
-  } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to reach Gemini API' }),
-    };
-  }
-};

@@ -1,6 +1,4 @@
 const Gemini = {
-  // Calls our own serverless function instead of Google directly.
-  // The API key is no longer here — it lives on the server now.
   FUNCTION_URL: '/.netlify/functions/gemini',
 
   async generateText(prompt, retriesLeft = 2) {
@@ -11,7 +9,16 @@ const Gemini = {
         body: JSON.stringify({ prompt, model: CONFIG.GEMINI_MODEL }),
       });
 
-      const data = await response.json();
+      const rawBody = await response.text();
+
+      let data;
+      try {
+        data = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        throw new Error(
+          `Gemini function returned a non-JSON response (status ${response.status}): ${rawBody.slice(0, 200)}`
+        );
+      }
 
       if (!response.ok) {
         const message = data?.error || `Gemini API error: ${response.status}`;
