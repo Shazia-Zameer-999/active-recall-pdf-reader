@@ -7,7 +7,7 @@ window.Pages.Landing = {
       <div class="landing">
         <header class="landing-nav">
           <div class="brand">
-            <span class="brand-icon">🧠</span>
+            <span class="brand-icon"><img src="assets/favicon.ico" alt="Recall Logo"></span>
             <span class="brand-name">Recall</span>
           </div>
           <button id="landing-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
@@ -39,7 +39,22 @@ window.Pages.Landing = {
             <p id="auth-subtitle">Your PDFs, notes, and progress will be saved securely.</p>
             <form id="auth-form-element">
               <input id="auth-name" class="manual-form-input auth-register-field" type="text" placeholder="Your name" autocomplete="name" hidden />
-              <input id="auth-email" class="manual-form-input" type="email" placeholder="Email address" autocomplete="email" required />
+              <input
+  id="auth-username"
+  class="manual-form-input auth-register-field"
+  type="text"
+  placeholder="Username"
+  autocomplete="username"
+  hidden
+/>
+              <input
+    id="auth-identifier"
+    class="manual-form-input"
+    type="text"
+    placeholder="Email or Username"
+    autocomplete="username"
+    required
+/>
               <input id="auth-password" class="manual-form-input" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" minlength="8" required />
               <button id="auth-submit" class="btn btn-primary" type="submit">Sign in</button>
               <p id="auth-status" class="auth-status" role="status"></p>
@@ -92,7 +107,21 @@ window.Pages.Landing = {
 
     toggle.addEventListener('click', () => {
       registerMode = !registerMode;
+      const identifierInput =
+document.getElementById("auth-identifier");
+
+identifierInput.placeholder =
+registerMode
+? "Email address"
+: "Email or Username";
+identifierInput.autocomplete =
+    registerMode ? "email" : "username";
       nameInput.hidden = !registerMode;
+      const usernameInput =
+      document.getElementById("auth-username");
+
+      usernameInput.hidden = !registerMode;
+      usernameInput.required = registerMode;
       nameInput.required = registerMode;
       title.textContent = registerMode ? 'Create your Recall account' : 'Sign in to Recall';
       subtitle.textContent = registerMode
@@ -108,13 +137,24 @@ window.Pages.Landing = {
       status.textContent = 'Please wait...';
       submit.disabled = true;
       try {
-        const email = document.getElementById('auth-email').value.trim();
+        const usernameInput =
+document.getElementById("auth-username");
+const identifierInput =
+document.getElementById("auth-identifier");
+
+const value = identifierInput.value.trim();
         const password = document.getElementById('auth-password').value;
         if (registerMode) {
-          await Auth.register(nameInput.value.trim(), email, password);
-        } else {
-          await Auth.login(email, password);
-        }
+    await Auth.register(
+        nameInput.value.trim(),
+        usernameInput.value.trim(),
+        value,
+        password
+    );
+} else {
+    await Auth.login(value, password);
+
+}
         Router.navigate('/dashboard');
       } catch (error) {
         status.textContent = error.message;

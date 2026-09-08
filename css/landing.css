@@ -65,6 +65,9 @@
   font-weight: 700;
   letter-spacing: 0.13em;
 }
+body[data-theme="dark"] .hero-kicker {
+    background: rgba(28, 35, 34, 0.75);
+}
 
 .landing-hero h1 {
   max-width: 760px;

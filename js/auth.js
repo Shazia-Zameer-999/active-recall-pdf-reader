@@ -52,10 +52,10 @@ const Auth = {
     return data;
   },
 
-  async login(email, password) {
+  async login(identifier, password) {
     const data = await this.request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
     this.user = data.user;
     await this.refreshCsrf();
@@ -65,10 +65,15 @@ const Auth = {
     return this.user;
   },
 
-  async register(name, email, password) {
+  async register(
+    name,
+    username,
+    email,
+    password
+) {
     const data = await this.request('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, username, email, password }),
     });
     this.user = data.user;
     await this.refreshCsrf();

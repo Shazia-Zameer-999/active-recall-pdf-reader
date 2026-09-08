@@ -398,6 +398,7 @@ def get_db():
     database_name = os.getenv("MONGODB_DB_NAME") or parsed.path.strip("/") or "ImpactX"
     mongo_db = mongo_client[database_name]
     mongo_db.users.create_index("email", unique=True)
+    mongo_db.users.create_index("username", unique=True)
     mongo_db.study_data.create_index(
         [("userId", ASCENDING), ("key", ASCENDING)], unique=True
     )
@@ -458,6 +459,7 @@ def public_user(user):
         "id": str(user["_id"]),
         "name": user.get("name", "Student"),
         "email": user["email"],
+        "username": user["username"],
         "avatar": user.get("avatar", "🧑‍🎓"),
         "bio": user.get("bio", ""),
         "createdAt": user.get("createdAt", now_utc()).isoformat(),
@@ -1619,8 +1621,13 @@ def register():
         return csrf_error
     payload = parse_json()
     name = str(payload.get("name", "Student")).strip()[:80] or "Student"
+    username = str(payload.get("username", "")).strip().lower()
     email = str(payload.get("email", "")).strip().lower()
     password = str(payload.get("password", ""))
+    if not re.fullmatch(r"[a-z0-9_]{3,20}", username):
+        return jsonify(
+        error="Username must contain only lowercase letters, numbers, and underscores (3–20 characters)."
+    ), 400
     if "@" not in email or len(email) > 254:
         return jsonify(error="Enter a valid email address"), 400
     if len(password) < 8 or len(password) > 128:
@@ -1628,6 +1635,7 @@ def register():
 
     user = {
         "name": name,
+        "username": username,
         "email": email,
         "passwordHash": hash_password(password),
         "createdAt": now_utc(),
@@ -1635,8 +1643,15 @@ def register():
     }
     try:
         result = get_db().users.insert_one(user)
-    except DuplicateKeyError:
-        return jsonify(error="An account with that email already exists"), 409
+    except DuplicateKeyError as exc:
+        key_pattern = (exc.details or {}).get("keyPattern", {})
+        if "email" in key_pattern:
+            message = "An account with that email already exists. Try logging in instead."
+        elif "username" in key_pattern:
+            message = "That username is already taken. Please choose another one."
+        else:
+            message = "Email or username already exists."
+        return jsonify(error=message), 409
 
     user["_id"] = result.inserted_id
     session.clear()
@@ -1653,11 +1668,18 @@ def login():
     if csrf_error:
         return csrf_error
     payload = parse_json()
-    email = str(payload.get("email", "")).strip().lower()
+    identifier = str(payload.get("identifier", "")).strip().lower()
     password = str(payload.get("password", ""))
-    user = get_db().users.find_one({"email": email})
+    user = get_db().users.find_one({
+        "$or": [
+            {"email": identifier},
+            {"username": identifier}
+        ]
+    })
     if not user or not verify_password(password, user["passwordHash"]):
-        return jsonify(error="Invalid email or password"), 401
+        return jsonify(
+            error="Invalid username/email or password"
+        ), 401
 
     migrated_hash = migrate_password(password, user["passwordHash"])
     if migrated_hash:
