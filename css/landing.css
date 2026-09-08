@@ -53,7 +53,10 @@
   padding: clamp(48px, 9vw, 110px) 24px 30px;
   text-align: center;
 }
-
+.brand-icon{
+    width:55px;
+    height:55px;
+}
 .hero-kicker {
   display: inline-flex;
   padding: 7px 12px;

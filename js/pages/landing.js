@@ -7,8 +7,15 @@ window.Pages.Landing = {
       <div class="landing">
         <header class="landing-nav">
           <div class="brand">
-            <span class="brand-icon"><img src="assets/favicon.ico" alt="Recall Logo"></span>
-            <span class="brand-name">Recall</span>
+            <model-viewer
+    class="brand-icon"
+    src="/assets/favico.glb"
+    auto-rotate
+    camera-controls
+    disable-zoom
+    interaction-prompt="none">
+</model-viewer>
+            <span class="brand-name">ImpactX</span>
           </div>
           <button id="landing-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
             <span id="landing-theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
