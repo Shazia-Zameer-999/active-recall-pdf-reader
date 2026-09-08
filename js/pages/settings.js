@@ -123,6 +123,7 @@ window.Pages.Settings = {
 
       Storage.saveSettings(newSettings);
       this.apply(newSettings);
+      ActiveRecall.syncSettings(newSettings);
       saveButton.disabled = true;
       saveButton.textContent = 'Saving...';
 

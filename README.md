@@ -65,7 +65,7 @@ An AI-powered PDF reader that helps students study using active recall. It asks 
    python3 app.py
    ```
 
-5. Open `http://localhost:5000`.
+5. Open the URL printed by Flask, usually `http://localhost:5001`.
 
 The app provides registration, login, logout, password changes, account
 deletion, CSRF-protected sessions, user-scoped study data, and GridFS-backed PDF

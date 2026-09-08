@@ -312,25 +312,63 @@ window.Pages.Reader = {
     if (!button) return;
 
     const updateButton = () => {
-      const isFullView = document.body.classList.contains('reader-fullscreen');
+      const isFullView = document.body.classList.contains('reader-fullscreen')
+        || Boolean(document.fullscreenElement)
+        || Boolean(document.webkitFullscreenElement);
       button.textContent = isFullView ? '⛶ Exit Full View' : '⛶ Full View';
       button.title = isFullView ? 'Exit full view' : 'Open reader in full view';
       button.setAttribute('aria-pressed', String(isFullView));
     };
 
-    const toggle = () => {
-      document.body.classList.toggle('reader-fullscreen');
+    const toggle = async () => {
+      const readerPage = document.querySelector('.reader-page');
+      const isFullView = document.body.classList.contains('reader-fullscreen')
+        || Boolean(document.fullscreenElement)
+        || Boolean(document.webkitFullscreenElement);
+
+      if (isFullView) {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+        document.body.classList.remove('reader-fullscreen');
+      } else {
+        document.body.classList.add('reader-fullscreen');
+        const requestFullscreen = readerPage?.requestFullscreen || readerPage?.webkitRequestFullscreen;
+        if (requestFullscreen) {
+          try {
+            await requestFullscreen.call(readerPage);
+          } catch (error) {
+            console.warn('Native fullscreen unavailable; using reader full view.', error);
+          }
+        }
+      }
+
       updateButton();
-      if (this.state.fitWidth) this.fitToWidth();
+      if (this.state.fitWidth) requestAnimationFrame(() => this.fitToWidth());
     };
 
     button.addEventListener('click', toggle);
     this.state.exitFullView = () => {
-      if (!document.body.classList.contains('reader-fullscreen')) return;
+      if (!document.body.classList.contains('reader-fullscreen')
+        && !document.fullscreenElement
+        && !document.webkitFullscreenElement) return;
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+      if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
       document.body.classList.remove('reader-fullscreen');
       updateButton();
-      if (this.state.fitWidth) this.fitToWidth();
+      if (this.state.fitWidth) requestAnimationFrame(() => this.fitToWidth());
     };
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        document.body.classList.remove('reader-fullscreen');
+      }
+      updateButton();
+      if (this.state.fitWidth) requestAnimationFrame(() => this.fitToWidth());
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') this.state.exitFullView();
     }, { once: false });

@@ -2,16 +2,39 @@ const ActiveRecall = {
   pagesSinceLastCheck: 0,
   currentPdfId: null,
   isPromptOpen: false,
+  recallFrequencyPages: null,
+  promptToken: 0,
 
   // Call this once when a new PDF is opened in the Reader, to reset counters
   init(pdfId) {
     this.currentPdfId = pdfId;
     this.pagesSinceLastCheck = 0;
+    this.recallFrequencyPages = null;
+    this.promptToken += 1;
+  },
+
+  syncSettings(settings) {
+    const frequency = Number(settings.recallFrequencyPages) || 5;
+    const frequencyChanged = this.recallFrequencyPages !== null
+      && this.recallFrequencyPages !== frequency;
+    if (frequencyChanged) {
+      this.pagesSinceLastCheck = 0;
+      this.promptToken += 1;
+      if (this.isPromptOpen) this.closeModal();
+    }
+    this.recallFrequencyPages = frequency;
+
+    if (!settings.recallEnabled) {
+      this.pagesSinceLastCheck = 0;
+      this.promptToken += 1;
+      if (this.isPromptOpen) this.closeModal();
+    }
   },
 
   // Call this every time a page finishes rendering in the Reader
   async onPageRead(pageText, pageNumber) {
     const settings = Storage.getSettings();
+    this.syncSettings(settings);
 
     if (!settings.recallEnabled) return;
     if (this.isPromptOpen) return; // don't stack prompts
@@ -27,6 +50,7 @@ const ActiveRecall = {
 
   async showPrompt(pageText, pageNumber) {
     this.isPromptOpen = true;
+    const promptToken = ++this.promptToken;
     this.renderModal('loading');
 
     try {
@@ -34,12 +58,22 @@ const ActiveRecall = {
       const cards = await Gemini.generateFlashcards(pageText, 1);
       const card = cards[0];
 
+      const currentSettings = Storage.getSettings();
+      if (promptToken !== this.promptToken || !currentSettings.recallEnabled) {
+        this.closeModal();
+        return;
+      }
+
       if (!card || !card.question) {
         throw new Error('No question generated');
       }
 
       this.renderModal('question', { card, pageText, pageNumber });
-   } catch (error) {
+    } catch (error) {
+      if (promptToken !== this.promptToken || !Storage.getSettings().recallEnabled) {
+        this.closeModal();
+        return;
+      }
       console.error('Active Recall generation failed:', error);
 
       const friendlyMessage =
@@ -170,5 +204,6 @@ const ActiveRecall = {
     const overlay = document.getElementById('recall-modal-overlay');
     if (overlay) overlay.remove();
     this.isPromptOpen = false;
+    this.promptToken += 1;
   },
 };

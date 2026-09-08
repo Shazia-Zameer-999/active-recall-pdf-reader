@@ -189,6 +189,29 @@ body.reader-fullscreen .reader-canvas-container {
   overflow: auto;
 }
 
+body.reader-fullscreen .annotations-panel {
+  display: none;
+}
+
+.reader-page:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  padding: max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.reader-page:fullscreen .reader-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.reader-page:fullscreen .annotations-panel {
+  display: none;
+}
+
 @media (max-width: 700px) {
   body.reader-fullscreen .reader-body {
     overflow: auto;
@@ -196,5 +219,34 @@ body.reader-fullscreen .reader-canvas-container {
 
   body.reader-fullscreen .annotations-panel {
     flex-shrink: 0;
+  }
+
+  body.reader-fullscreen .reader-toolbar,
+  .reader-page:fullscreen .reader-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.reader-fullscreen .reader-toolbar > *,
+  .reader-page:fullscreen .reader-toolbar > * {
+    flex: 0 0 auto;
+  }
+
+  body.reader-fullscreen .annotation-toolbar,
+  .reader-page:fullscreen .annotation-toolbar {
+    max-height: 52px;
+    margin-bottom: 8px;
+  }
+
+  body.reader-fullscreen .reader-body,
+  .reader-page:fullscreen .reader-body {
+    min-height: 0;
+  }
+
+  body.reader-fullscreen .reader-canvas-container,
+  .reader-page:fullscreen .reader-canvas-container {
+    min-height: 0;
   }
 }
