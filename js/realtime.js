@@ -6,7 +6,15 @@ const Realtime = {
     connect() {
         if (this.socket || typeof io === 'undefined' || !Auth.user) return;
         this.socket = io({ transports: ['websocket', 'polling'] });
+        this.socket.on('connect', () => Notifications.refresh());
         this.socket.on('connect_error', (error) => console.error('Realtime connection failed:', error.message));
+    },
+
+    disconnect() {
+        if (this.socket) this.socket.disconnect();
+        this.socket = null;
+        this.currentGroupId = null;
+        this.listeners.clear();
     },
 
     on(event, callback) {

@@ -1241,8 +1241,6 @@ def create_message(user, group_id):
         return jsonify(error="Group not found"), 404
     payload = parse_json()
     body = str(payload.get("body", "")).strip()[:2000]
-    if not body:
-        return jsonify(error="Message cannot be empty"), 400
     database = get_db()
     group_object_id = ObjectId(group_id)
     if not group_member(database, group_object_id, user["_id"]):
@@ -1250,6 +1248,8 @@ def create_message(user, group_id):
     attachments = payload.get("attachments", [])
     if not isinstance(attachments, list) or len(attachments) > 5:
         return jsonify(error="Invalid attachments"), 400
+    if not body and not attachments:
+        return jsonify(error="Message or attachment is required"), 400
     record = {
         "groupId": group_object_id,
         "senderId": user["_id"],

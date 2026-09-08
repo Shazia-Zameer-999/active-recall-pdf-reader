@@ -60,6 +60,8 @@ const Auth = {
     this.user = data.user;
     await this.refreshCsrf();
     await DataSync.hydrate();
+    Realtime.connect();
+    await Notifications.init();
     return this.user;
   },
 
@@ -71,6 +73,8 @@ const Auth = {
     this.user = data.user;
     await this.refreshCsrf();
     await DataSync.hydrate();
+    Realtime.connect();
+    await Notifications.init();
     return this.user;
   },
 
@@ -80,6 +84,8 @@ const Auth = {
     this.csrfToken = null;
     DataSync.enabled = false;
     Storage.clearUserData();
+    Realtime.disconnect();
+    Notifications.reset();
     await this.refreshCsrf();
   },
 };

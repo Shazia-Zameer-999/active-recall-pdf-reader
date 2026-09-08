@@ -108,10 +108,15 @@
 }
 .notification-item,
 .notification-empty {
+  display: block;
+  width: 100%;
   margin: 0;
   padding: 8px;
+  border: 0;
+  background: transparent;
   color: var(--text-secondary);
   font-size: 0.78rem;
+  text-align: left;
 }
 .notification-item.unread {
   color: var(--text-primary);

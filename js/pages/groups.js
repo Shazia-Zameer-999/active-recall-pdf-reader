@@ -96,8 +96,8 @@ window.Pages.Groups = {
             event.preventDefault();
             const input = document.getElementById('group-chat-input');
             const body = input.value.trim();
-            if (!body) return;
             const attachment = document.getElementById('group-attachment-input').files[0];
+            if (!body && !attachment) return;
             let attachments = [];
             if (attachment) {
                 const form = new FormData();
@@ -115,7 +115,10 @@ window.Pages.Groups = {
         this.currentMessages = [...new Map(messages.map((message) => [message.id, message])).values()];
         const list = document.getElementById('group-chat-list');
         if (!list) return;
-        list.innerHTML = this.currentMessages.map((message) => `<p data-message-id="${message.id}"><strong>${this.escapeHtml(message.sender?.name || 'Student')}</strong>: ${this.escapeHtml(message.body)}${message.readAt ? ' ✓' : ''}</p>`).join('');
+        list.innerHTML = this.currentMessages.map((message) => {
+            const attachments = (message.attachments || []).map((attachment) => `<a href="/api/group-attachments/${encodeURIComponent(attachment.id)}" target="_blank" rel="noopener">📎 ${this.escapeHtml(attachment.name || 'Attachment')}</a>`).join(' ');
+            return `<p data-message-id="${message.id}"><strong>${this.escapeHtml(message.sender?.name || 'Student')}</strong>${message.body ? `: ${this.escapeHtml(message.body)}` : ''}${attachments ? `<br>${attachments}` : ''}${message.readAt ? ' ✓' : ''}</p>`;
+        }).join('');
         list.scrollTop = list.scrollHeight;
         list.querySelectorAll('[data-message-id]').forEach((message) => {
             message.addEventListener('click', () => Realtime.readMessage(message.dataset.messageId));
