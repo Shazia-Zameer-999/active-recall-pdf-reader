@@ -7,6 +7,9 @@ window.Pages.Landing = {
             <span class="brand-icon">🧠</span>
             <span class="brand-name">Recall</span>
           </div>
+          <button id="landing-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
+            <span id="landing-theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
+          </button>
           <a href="#auth-form" class="btn btn-primary">Get Started</a>
         </header>
 
@@ -63,6 +66,15 @@ window.Pages.Landing = {
   },
 
   afterRender() {
+    const themeBtn = document.getElementById('landing-theme-toggle');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        Theme.toggle();
+        document.getElementById('landing-theme-icon').textContent =
+          Theme.current() === 'dark' ? '☀️' : '🌙';
+      });
+    }
+
     const form = document.getElementById('auth-form-element');
     if (!form) return;
 

@@ -4,16 +4,24 @@ html, body { min-height: 100%; }
 
 body {
   margin: 0;
+  overflow-x: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
 }
 
+img, svg, canvas { max-width: 100%; }
+
 h1, h2, h3, h4, p { margin-top: 0; }
 h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.03em; }
 button, input, textarea, select { font: inherit; }
 button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 
 .annotation-toolbar {
   display: flex;

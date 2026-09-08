@@ -8,6 +8,14 @@
   transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
+@media (max-width: 560px) {
+  .drop-zone { padding: 28px 16px; }
+  .library-view-toggle { overflow-x: auto; padding-bottom: 3px; }
+  .library-view-toggle .btn { flex: 0 0 auto; }
+  .library-grid { grid-template-columns: 1fr; }
+  .pdf-card { align-items: flex-start; text-align: left; padding-right: 44px; }
+}
+
 .drop-zone-active {
   border-color: var(--accent);
   background: var(--bg-secondary);
@@ -113,6 +121,22 @@
   display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
+}
+
+.library-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.library-toolbar .notes-search-input { max-width: 360px; margin: 0; }
+.library-toolbar .library-view-toggle { margin: 0; }
+
+@media (max-width: 560px) {
+  .library-toolbar { align-items: stretch; flex-direction: column; }
+  .library-toolbar .notes-search-input { max-width: none; }
 }
 
 .library-view-toggle .btn.active-view {

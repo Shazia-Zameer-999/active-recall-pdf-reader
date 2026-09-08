@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await Auth.init();
+  CommandPalette.init();
 
   Router.init();
 });

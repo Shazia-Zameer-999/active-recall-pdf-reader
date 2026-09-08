@@ -24,6 +24,7 @@ const Layout = {
 
     return `
       <div class="app-shell">
+        <div id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>
         <aside class="sidebar">
           <div class="sidebar-brand">
             <span class="brand-icon">🧠</span>
@@ -34,10 +35,14 @@ const Layout = {
 
         <div class="main-column">
           <header class="topbar">
+            <button id="mobile-menu-btn" class="icon-btn mobile-menu-btn" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
+            <div class="topbar-spacer"></div>
             <button id="timer-toggle-btn" class="icon-btn" title="Pomodoro Timer">⏱️</button>
             <button id="theme-toggle-btn" class="icon-btn" title="Toggle theme">
               <span id="theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
             </button>
+            <button id="command-palette-btn" class="command-shortcut" type="button" title="Open command palette">⌘ K</button>
+            <span class="topbar-user" title="Signed in account">${Layout.escapeHtml(Auth.user?.name || 'Student')}</span>
             <button id="logout-btn" class="btn btn-secondary-sm">Log out</button>
           </header>
           <main class="page-content">${pageContent}</main>
@@ -47,6 +52,24 @@ const Layout = {
   },
 
   afterRender() {
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const closeMenu = () => {
+      document.body.classList.remove('menu-open');
+      menuBtn?.setAttribute('aria-expanded', 'false');
+    };
+    if (menuBtn) {
+      menuBtn.addEventListener('click', () => {
+        const isOpen = document.body.classList.toggle('menu-open');
+        menuBtn.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+    backdrop?.addEventListener('click', closeMenu);
+    document.querySelectorAll('.nav-link').forEach((link) => link.addEventListener('click', closeMenu));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMenu();
+    }, { once: true });
+
     const themeBtn = document.getElementById('theme-toggle-btn');
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {
@@ -61,6 +84,8 @@ const Layout = {
       timerBtn.addEventListener('click', () => Timer.toggleVisibility());
     }
 
+    document.getElementById('command-palette-btn')?.addEventListener('click', () => CommandPalette.open());
+
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
@@ -74,5 +99,15 @@ const Layout = {
         }
       });
     }
+  },
+
+  escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[character]));
   },
 };

@@ -72,6 +72,14 @@
   min-width: 0;
 }
 
+@media (max-width: 700px) {
+  .reader-toolbar { padding: 8px; gap: 6px; }
+  .toolbar-divider { display: none; }
+  .reader-toolbar .btn-secondary-sm { flex: 1 1 auto; }
+  .reader-canvas-container { padding: 10px; }
+  .annotations-panel { width: 100%; max-height: 220px; }
+}
+
 #pdf-canvas {
   box-shadow: var(--shadow);
   background: white;

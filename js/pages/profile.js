@@ -3,7 +3,7 @@ window.Pages.Profile = {
     return `
       <div class="page-header">
         <h1>Profile</h1>
-        <p class="page-subtitle">Your local study profile</p>
+        <p class="page-subtitle">Your account, study workspace, and security</p>
       </div>
 
       <div id="profile-content"></div>
@@ -80,6 +80,18 @@ window.Pages.Profile = {
         <p class="settings-hint">Permanently delete all your PDFs, notes, flashcards, quizzes, and settings. This cannot be undone.</p>
         <button id="reset-data-btn" class="btn btn-danger">Reset All Data</button>
       </div>
+
+      <div class="settings-section profile-security-section">
+        <h3 class="settings-section-title">Account security</h3>
+        <form id="change-password-form" class="profile-security-form">
+          <input id="current-password-input" class="manual-form-input" type="password" placeholder="Current password" autocomplete="current-password" required />
+          <input id="new-password-input" class="manual-form-input" type="password" placeholder="New password (8+ characters)" minlength="8" autocomplete="new-password" required />
+          <input id="confirm-password-input" class="manual-form-input" type="password" placeholder="Confirm new password" minlength="8" autocomplete="new-password" required />
+          <button class="btn btn-secondary-sm" type="submit">Change password</button>
+          <span id="password-save-status" class="settings-save-status" role="status"></span>
+        </form>
+        <button id="delete-account-btn" class="btn btn-danger profile-delete-account">Delete account</button>
+      </div>
     `;
 
     let selectedAvatar = currentAvatar;
@@ -120,6 +132,48 @@ window.Pages.Profile = {
 
       alert('All data has been reset.');
       Router.navigate('/');
+    });
+
+    document.getElementById('change-password-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const newPassword = document.getElementById('new-password-input').value;
+      const confirmPassword = document.getElementById('confirm-password-input').value;
+      const statusEl = document.getElementById('password-save-status');
+      if (newPassword !== confirmPassword) {
+        statusEl.textContent = 'Passwords do not match';
+        statusEl.classList.add('settings-save-status-visible');
+        return;
+      }
+
+      try {
+        await Auth.request('/api/auth/change-password', {
+          method: 'POST',
+          body: JSON.stringify({
+            currentPassword: document.getElementById('current-password-input').value,
+            newPassword,
+          }),
+        });
+        statusEl.textContent = 'Password updated';
+        statusEl.classList.add('settings-save-status-visible');
+        event.target.reset();
+      } catch (error) {
+        statusEl.textContent = error.message;
+        statusEl.classList.add('settings-save-status-visible');
+      }
+    });
+
+    document.getElementById('delete-account-btn').addEventListener('click', async () => {
+      const confirmed = confirm('Delete your account and all stored study data? This cannot be undone.');
+      if (!confirmed) return;
+      try {
+        await Auth.request('/api/auth/account', { method: 'DELETE' });
+        Auth.user = null;
+        DataSync.enabled = false;
+        Storage.clearUserData();
+        Router.navigate('/');
+      } catch (error) {
+        alert(error.message);
+      }
     });
   },
 };

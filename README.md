@@ -9,7 +9,11 @@ An AI-powered PDF reader that helps students study using active recall. It asks 
 - Active recall questions
 - Flashcards
 - Quiz generation
-- Clean and responsive interface
+- Cloud-synced accounts with secure sessions
+- MongoDB-backed PDF and study-data storage
+- Password changes and account deletion
+- Responsive mobile navigation and command palette
+- Clean light and dark themes
 
 ## Tech Stack
 
