@@ -1,6 +1,12 @@
 window.Pages.Settings = {
+  apply(settings) {
+    document.documentElement.style.setProperty('--reader-font-size', `${settings.fontSize}px`);
+    document.body.classList.toggle('high-contrast', Boolean(settings.highContrast));
+  },
+
   render() {
     const settings = Storage.getSettings();
+    this.apply(settings);
 
     return `
       <div class="page-header">
@@ -104,7 +110,9 @@ window.Pages.Settings = {
       fontSizeValue.textContent = `${e.target.value}px`;
     });
 
-    document.getElementById('save-settings-btn').addEventListener('click', () => {
+    document.getElementById('save-settings-btn').addEventListener('click', async () => {
+      const saveButton = document.getElementById('save-settings-btn');
+      const statusEl = document.getElementById('settings-save-status');
       const newSettings = {
         recallEnabled: document.getElementById('setting-recall-enabled').checked,
         recallFrequencyPages: parseInt(document.getElementById('setting-recall-frequency').value, 10) || 5,
@@ -114,10 +122,21 @@ window.Pages.Settings = {
       };
 
       Storage.saveSettings(newSettings);
+      this.apply(newSettings);
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
 
-      const statusEl = document.getElementById('settings-save-status');
-      statusEl.textContent = '✓ Saved';
-      statusEl.classList.add('settings-save-status-visible');
+      try {
+        await DataSync.flush();
+        statusEl.textContent = 'Saved to your account';
+        statusEl.classList.add('settings-save-status-visible');
+      } catch (error) {
+        statusEl.textContent = `Could not save: ${error.message}`;
+        statusEl.classList.add('settings-save-status-visible');
+      } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Settings';
+      }
 
       setTimeout(() => {
         statusEl.classList.remove('settings-save-status-visible');

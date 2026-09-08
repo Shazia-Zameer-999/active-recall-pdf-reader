@@ -1,6 +1,11 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body { min-height: 100%; }
+html,
+body {
+  min-height: 100%;
+}
 
 body {
   margin: 0;
@@ -11,12 +16,36 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-img, svg, canvas { max-width: 100%; }
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
 
-h1, h2, h3, h4, p { margin-top: 0; }
-h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.03em; }
-button, input, textarea, select { font: inherit; }
-button:disabled { cursor: not-allowed; opacity: 0.6; }
+h1,
+h2,
+h3,
+h4,
+p {
+  margin-top: 0;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -192,5 +221,5 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
   font-size: 1.3rem;
   cursor: pointer;
   pointer-events: auto;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }

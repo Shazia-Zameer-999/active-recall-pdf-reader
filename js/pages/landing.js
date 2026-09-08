@@ -1,5 +1,8 @@
 window.Pages.Landing = {
   render() {
+    const primaryAction = Auth.user ? '#/dashboard' : '#auth-form';
+    const primaryActionLabel = Auth.user ? 'Open Dashboard' : 'Get Started';
+
     return `
       <div class="landing">
         <header class="landing-nav">
@@ -10,7 +13,7 @@ window.Pages.Landing = {
           <button id="landing-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
             <span id="landing-theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
           </button>
-          <a href="#auth-form" class="btn btn-primary">Get Started</a>
+          <a href="${primaryAction}" class="btn btn-primary">${primaryActionLabel}</a>
         </header>
 
         <section class="landing-hero">
@@ -20,7 +23,8 @@ window.Pages.Landing = {
             Read smarter with an AI study companion that turns your PDFs into
             questions, flashcards, and lasting memory.
           </p>
-          <a href="#auth-form" class="btn btn-primary btn-lg">Start Studying</a>
+          <a href="${primaryAction}" class="btn btn-primary btn-lg">${Auth.user ? 'Continue Studying' : 'Start Studying'
+      }</a>
         </section>
 
         ${Auth.user ? `

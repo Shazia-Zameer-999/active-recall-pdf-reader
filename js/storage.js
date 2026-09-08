@@ -194,6 +194,7 @@ const Storage = {
 const DataSync = {
   enabled: false,
   hydrating: false,
+  pending: new Set(),
 
   apiKey(storageKey) {
     const entry = Object.entries(Storage.KEYS).find(([, value]) => value === storageKey);
@@ -214,13 +215,22 @@ const DataSync = {
   },
 
   save(storageKey, value) {
-    if (!this.enabled || this.hydrating || !Auth.user) return;
+    if (!this.enabled || this.hydrating || !Auth.user) return Promise.resolve();
     const key = this.apiKey(storageKey);
-    if (!key) return;
-    Auth.request(`/api/data/${key}`, {
+    if (!key) return Promise.resolve();
+    const request = Auth.request(`/api/data/${key}`, {
       method: 'PUT',
       body: JSON.stringify({ value }),
-    }).catch((error) => console.error('Cloud save failed:', error));
+    });
+    this.pending.add(request);
+    request.catch((error) => console.error('Cloud save failed:', error)).finally(() => {
+      this.pending.delete(request);
+    });
+    return request;
+  },
+
+  async flush() {
+    await Promise.all([...this.pending]);
   },
 
   async clear() {

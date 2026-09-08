@@ -65,7 +65,7 @@ An AI-powered PDF reader that helps students study using active recall. It asks 
    python3 app.py
    ```
 
-5. Open `http://localhost:5001`.
+5. Open `http://localhost:5000`.
 
 The app provides registration, login, logout, password changes, account
 deletion, CSRF-protected sessions, user-scoped study data, and GridFS-backed PDF
@@ -92,11 +92,11 @@ pdf-active-recall-app/
 └── README.md
 ```
 
-## Future Improvements
+## Current capabilities
 
-- Progress tracking
-- Spaced repetition
-- More AI study tools
+- Reading progress, daily study goals, and analytics
+- Spaced-repetition flashcard reviews
+- AI summaries, flashcards, and quizzes through the server-side Gemini integration
 
 ## Author
 

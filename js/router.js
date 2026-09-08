@@ -20,6 +20,7 @@ const Router = {
   // Returns just the path part, e.g. "#/reader?id=abc123" -> "/reader"
   getCurrentPath() {
     const hash = window.location.hash.replace('#', '');
+    if (hash && !hash.startsWith('/')) return '/';
     const path = hash.split('?')[0];
     return path || '/';
   },

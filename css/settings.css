@@ -125,3 +125,23 @@
 .settings-save-status-visible {
   opacity: 1;
 }
+
+:root { --reader-font-size: 16px; }
+.note-card-content, .reader-text-content { font-size: var(--reader-font-size); }
+
+body.high-contrast {
+  --text-secondary: #3e4b47;
+  --border-color: #7a8580;
+}
+
+body[data-theme="dark"].high-contrast {
+  --text-secondary: #d1d5db;
+  --border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 560px) {
+  .settings-row { align-items: flex-start; flex-direction: column; }
+  .settings-row > input[type="number"], .settings-slider-group { align-self: stretch; }
+  .settings-slider-group input[type="range"] { flex: 1; width: auto; }
+  .settings-actions { align-items: stretch; flex-direction: column; }
+}
