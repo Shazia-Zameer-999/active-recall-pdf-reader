@@ -22,7 +22,7 @@ const Auth = {
     this.csrfToken = data.token;
   },
 
-  async request(url, options = {}) {
+  async request(url, options = {}, allowCsrfRetry = true) {
     const method = (options.method || 'GET').toUpperCase();
     const headers = new Headers(options.headers || {});
     if (options.body && !headers.has('Content-Type') && !(options.body instanceof FormData)) {
@@ -35,6 +35,15 @@ const Auth = {
 
     const response = await fetch(url, { ...options, method, headers });
     const data = await response.json().catch(() => ({}));
+    if (
+      response.status === 403
+      && data.error === 'Invalid or missing CSRF token'
+      && allowCsrfRetry
+    ) {
+      this.csrfToken = null;
+      await this.refreshCsrf();
+      return this.request(url, options, false);
+    }
     if (!response.ok) {
       const error = new Error(data.error || `Request failed (${response.status})`);
       error.status = response.status;
@@ -68,7 +77,9 @@ const Auth = {
   async logout() {
     await this.request('/api/auth/logout', { method: 'POST' });
     this.user = null;
+    this.csrfToken = null;
     DataSync.enabled = false;
     Storage.clearUserData();
+    await this.refreshCsrf();
   },
 };

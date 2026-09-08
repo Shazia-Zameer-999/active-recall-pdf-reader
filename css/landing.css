@@ -137,6 +137,22 @@
 
 .auth-signed-in { text-align: center; }
 
+body[data-theme="dark"] .auth-card {
+  background: rgba(28, 35, 34, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body[data-theme="dark"] .manual-form-input {
+  background: #151b1a;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+
+body[data-theme="dark"] .feature-card {
+  background: rgba(28, 35, 34, 0.78);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 .landing-features {
   position: relative;
   z-index: 1;
