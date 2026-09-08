@@ -26,6 +26,7 @@ const Storage = {
   _set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
+      if (typeof DataSync !== 'undefined') DataSync.save(key, value);
       return true;
     } catch (error) {
       console.error(`Storage write failed for ${key}:`, error);
@@ -176,5 +177,55 @@ const Storage = {
 
   generateId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  },
+
+  hydrate(data) {
+    Object.entries(data || {}).forEach(([key, value]) => {
+      const storageKey = this.KEYS[key.toUpperCase()];
+      if (storageKey) localStorage.setItem(storageKey, JSON.stringify(value));
+    });
+  },
+
+  clearUserData() {
+    Object.values(this.KEYS).forEach((key) => localStorage.removeItem(key));
+  },
+};
+
+const DataSync = {
+  enabled: false,
+  hydrating: false,
+
+  apiKey(storageKey) {
+    const entry = Object.entries(Storage.KEYS).find(([, value]) => value === storageKey);
+    return entry ? entry[0].toLowerCase() : null;
+  },
+
+  async hydrate() {
+    if (!Auth.user) return;
+    this.hydrating = true;
+    try {
+      const data = await Auth.request('/api/data');
+      Storage.clearUserData();
+      Storage.hydrate(data);
+      this.enabled = true;
+    } finally {
+      this.hydrating = false;
+    }
+  },
+
+  save(storageKey, value) {
+    if (!this.enabled || this.hydrating || !Auth.user) return;
+    const key = this.apiKey(storageKey);
+    if (!key) return;
+    Auth.request(`/api/data/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }).catch((error) => console.error('Cloud save failed:', error));
+  },
+
+  async clear() {
+    if (Auth.user) await Auth.request('/api/data', { method: 'DELETE' });
+    this.enabled = false;
+    Storage.clearUserData();
   },
 };

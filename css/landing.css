@@ -31,6 +31,45 @@
   padding: 0 var(--space-lg) 80px;
 }
 
+.auth-card {
+  width: min(100% - 2rem, 440px);
+  margin: var(--space-xl) auto 0;
+  padding: var(--space-xl);
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-lg, 18px);
+  box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.08));
+}
+
+.auth-card h2,
+.auth-card p {
+  text-align: center;
+}
+
+.auth-card form {
+  display: grid;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.auth-card .btn {
+  justify-self: center;
+}
+
+.auth-card > .btn {
+  display: block;
+  margin: var(--space-md) auto 0;
+}
+
+.auth-status {
+  min-height: 1.3em;
+  color: var(--color-danger, #dc2626);
+}
+
+.auth-signed-in {
+  text-align: center;
+}
+
 .feature-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);

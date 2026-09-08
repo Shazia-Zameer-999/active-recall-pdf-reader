@@ -37,6 +37,11 @@ const Router = {
     const page = routes[path];
     const app = document.getElementById('app');
 
+    if (path !== '/' && !Auth.user) {
+      window.location.hash = '/';
+      return;
+    }
+
     if (!page) {
       app.innerHTML = `<div class="page-error"><h2>404 — Page not found</h2></div>`;
       return;

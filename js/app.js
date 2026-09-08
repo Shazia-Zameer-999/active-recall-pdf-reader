@@ -7,5 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Failed to initialize database:', error);
   }
 
+  await Auth.init();
+
   Router.init();
 });

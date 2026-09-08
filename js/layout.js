@@ -38,6 +38,7 @@ const Layout = {
             <button id="theme-toggle-btn" class="icon-btn" title="Toggle theme">
               <span id="theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
             </button>
+            <button id="logout-btn" class="btn btn-secondary-sm">Log out</button>
           </header>
           <main class="page-content">${pageContent}</main>
         </div>
@@ -58,6 +59,20 @@ const Layout = {
     const timerBtn = document.getElementById('timer-toggle-btn');
     if (timerBtn) {
       timerBtn.addEventListener('click', () => Timer.toggleVisibility());
+    }
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        logoutBtn.disabled = true;
+        try {
+          await Auth.logout();
+          Router.navigate('/');
+        } catch (error) {
+          console.error('Logout failed:', error);
+          logoutBtn.disabled = false;
+        }
+      });
     }
   },
 };

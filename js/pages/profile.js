@@ -115,12 +115,8 @@ window.Pages.Profile = {
       const doubleConfirmed = confirm('Really sure? This is your last chance to cancel.');
       if (!doubleConfirmed) return;
 
-      localStorage.clear();
-
-      const allPdfs = await DB.getAllPDFs();
-      for (const pdf of allPdfs) {
-        await DB.deletePDF(pdf.id);
-      }
+      await DataSync.clear();
+      await DB.deleteAllPDFs();
 
       alert('All data has been reset.');
       Router.navigate('/');
