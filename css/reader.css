@@ -183,10 +183,12 @@ body.reader-fullscreen .annotation-toolbar {
 body.reader-fullscreen .reader-body {
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 body.reader-fullscreen .reader-canvas-container {
   overflow: auto;
+  min-height: 0;
 }
 
 body.reader-fullscreen .annotations-panel {
@@ -206,6 +208,12 @@ body.reader-fullscreen .annotations-panel {
 .reader-page:fullscreen .reader-body {
   flex: 1;
   overflow: hidden;
+  min-height: 0;
+}
+
+.reader-page:fullscreen .reader-canvas-container {
+  min-height: 0;
+  overflow: auto;
 }
 
 .reader-page:fullscreen .annotations-panel {
@@ -214,7 +222,7 @@ body.reader-fullscreen .annotations-panel {
 
 @media (max-width: 700px) {
   body.reader-fullscreen .reader-body {
-    overflow: auto;
+    overflow: hidden;
   }
 
   body.reader-fullscreen .annotations-panel {
@@ -243,6 +251,7 @@ body.reader-fullscreen .annotations-panel {
   body.reader-fullscreen .reader-body,
   .reader-page:fullscreen .reader-body {
     min-height: 0;
+    overflow: hidden;
   }
 
   body.reader-fullscreen .reader-canvas-container,

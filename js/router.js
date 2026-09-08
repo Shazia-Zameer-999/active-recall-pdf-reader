@@ -9,6 +9,8 @@ const routes = {
   '/analytics': window.Pages.Analytics,
   '/settings': window.Pages.Settings,
   '/profile': window.Pages.Profile,
+  '/friends': window.Pages.Friends,
+  '/groups': window.Pages.Groups,
 };
 
 const Router = {
@@ -35,6 +37,9 @@ const Router = {
 
   render() {
     const path = this.getCurrentPath();
+    if (this.getCurrentPath() !== '/reader' && StudySessions.activeId) {
+      StudySessions.finish();
+    }
     const page = routes[path];
     const app = document.getElementById('app');
 

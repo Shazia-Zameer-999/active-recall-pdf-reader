@@ -4,12 +4,14 @@ const ActiveRecall = {
   isPromptOpen: false,
   recallFrequencyPages: null,
   promptToken: 0,
+  lastVisitId: null,
 
   // Call this once when a new PDF is opened in the Reader, to reset counters
   init(pdfId) {
     this.currentPdfId = pdfId;
     this.pagesSinceLastCheck = 0;
     this.recallFrequencyPages = null;
+    this.lastVisitId = null;
     this.promptToken += 1;
   },
 
@@ -32,13 +34,16 @@ const ActiveRecall = {
   },
 
   // Call this every time a page finishes rendering in the Reader
-  async onPageRead(pageText, pageNumber) {
+  async onPageRead(pageText, pageNumber, visitId) {
     const settings = Storage.getSettings();
     this.syncSettings(settings);
 
     if (!settings.recallEnabled) return;
     if (this.isPromptOpen) return; // don't stack prompts
     if (!pageText || pageText.trim().length < 40) return; // skip near-empty pages
+
+    if (visitId !== undefined && this.lastVisitId === visitId) return;
+    if (visitId !== undefined) this.lastVisitId = visitId;
 
     this.pagesSinceLastCheck++;
 

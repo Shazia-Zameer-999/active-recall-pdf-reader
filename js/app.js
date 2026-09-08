@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await Auth.init();
+  Realtime.connect();
+  await Notifications.init();
   CommandPalette.init();
 
   Router.init();

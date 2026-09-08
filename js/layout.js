@@ -9,6 +9,8 @@ const Layout = {
     { path: '/analytics', label: 'Analytics', icon: '📈' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
     { path: '/profile', label: 'Profile', icon: '👤' },
+    { path: '/friends', label: 'Friends', icon: '🤝' },
+    { path: '/groups', label: 'Groups', icon: '👥' },
   ],
 
   render(pageContent, activePath) {
@@ -42,6 +44,10 @@ const Layout = {
               <span id="theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
             </button>
             <button id="command-palette-btn" class="command-shortcut" type="button" title="Open command palette">⌘ K</button>
+            <div class="notification-wrap">
+              <button id="notification-btn" class="icon-btn" type="button" title="Notifications" aria-label="Notifications">🔔<span id="notification-badge" class="notification-badge" hidden></span></button>
+              <div id="notification-popover" class="notification-popover"><div id="notification-list"></div></div>
+            </div>
             <span class="topbar-user" title="Signed in account">${Layout.escapeHtml(Auth.user?.name || 'Student')}</span>
             <button id="logout-btn" class="btn btn-secondary-sm">Log out</button>
           </header>
@@ -85,6 +91,8 @@ const Layout = {
     }
 
     document.getElementById('command-palette-btn')?.addEventListener('click', () => CommandPalette.open());
+    document.getElementById('notification-btn')?.addEventListener('click', () => Notifications.toggle());
+    Notifications.render();
 
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {

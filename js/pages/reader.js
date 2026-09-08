@@ -8,6 +8,7 @@ window.Pages.Reader = {
     pdfId: null,
     pdfName: '',
     renderToken: 0,
+    pageVisitId: 0,
   },
 
   render() {
@@ -104,6 +105,7 @@ window.Pages.Reader = {
 
       const requestedPage = parseInt(Router.getQueryParam('page'), 10);
       this.state.currentPage = requestedPage && requestedPage <= this.state.totalPages ? requestedPage : 1;
+      this.state.pageVisitId = 1;
 
       document.getElementById('total-pages').textContent = this.state.totalPages;
       document.getElementById('page-input').max = this.state.totalPages;
@@ -112,6 +114,12 @@ window.Pages.Reader = {
       this.attachAnnotationToolbarListeners();
       this.attachTouchNavigation();
       this.attachFullViewListener();
+      try {
+        await StudySessions.start(this.state.pdfId, this.state.currentPage);
+        Realtime.studyStarted(this.state.pdfId, this.state.currentPage);
+      } catch (error) {
+        console.error('Study session start failed:', error);
+      }
       window.addEventListener('resize', () => {
         if (this.state.fitWidth) this.fitToWidth();
       }, { passive: true });
@@ -136,7 +144,7 @@ window.Pages.Reader = {
     await this.renderPage(this.state.currentPage);
   },
 
-  async renderPage(pageNumber) {
+  async renderPage(pageNumber, visitId = this.state.pageVisitId) {
     const renderToken = ++this.state.renderToken;
     const canvasContainer = document.getElementById('reader-canvas-container');
     const page = await this.state.pdfDoc.getPage(pageNumber);
@@ -203,7 +211,8 @@ window.Pages.Reader = {
       }
     }
 
-    ActiveRecall.onPageRead(pageText, pageNumber);
+    if (renderToken !== this.state.renderToken) return;
+    ActiveRecall.onPageRead(pageText, pageNumber, visitId);
   },
 
   showOcrIndicator(show) {
@@ -448,7 +457,11 @@ window.Pages.Reader = {
 
   goToPage(pageNum) {
     if (pageNum < 1 || pageNum > this.state.totalPages) return;
+    if (pageNum === this.state.currentPage) return;
     this.state.currentPage = pageNum;
+    this.state.pageVisitId += 1;
+    StudySessions.update(pageNum).catch((error) => console.error('Study session update failed:', error));
+    Realtime.studyUpdated(pageNum);
     const pageInput = document.getElementById('page-input');
     if (pageInput) pageInput.value = pageNum;
     this.renderPage(pageNum);

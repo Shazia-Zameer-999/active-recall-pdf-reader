@@ -74,6 +74,50 @@
   background: var(--border-color);
 }
 
+.notification-wrap {
+  position: relative;
+}
+.notification-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 1px 3px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #101114;
+  font-size: 0.62rem;
+  line-height: 13px;
+}
+.notification-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: none;
+  width: min(280px, 82vw);
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+.notification-popover.is-open {
+  display: block;
+}
+.notification-item,
+.notification-empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+.notification-item.unread {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .command-palette {
   position: fixed;
   inset: 0;

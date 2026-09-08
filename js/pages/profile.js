@@ -16,7 +16,16 @@ window.Pages.Profile = {
 
   async renderProfile() {
     const content = document.getElementById('profile-content');
-    const profile = Storage.getProfile();
+    const localProfile = Storage.getProfile();
+    let profile = localProfile;
+    let serverStats = null;
+    try {
+      const serverProfile = await Auth.request('/api/profile');
+      profile = { ...localProfile, ...serverProfile };
+      serverStats = serverProfile.stats;
+    } catch (error) {
+      console.error('Profile loading failed:', error);
+    }
     const pdfs = await DB.getAllPDFs();
     const flashcards = Storage.getFlashcards();
     const quizHistory = Storage.getQuizHistory();
@@ -35,16 +44,19 @@ window.Pages.Profile = {
       <div class="profile-card">
         <div class="profile-avatar-picker">
           ${avatars
-            .map(
-              (a) => `
+        .map(
+          (a) => `
             <button class="avatar-option ${a === currentAvatar ? 'avatar-selected' : ''}" data-avatar="${a}">${a}</button>
           `
-            )
-            .join('')}
+        )
+        .join('')}
         </div>
 
         <label class="settings-label" for="profile-name-input">Name</label>
         <input type="text" id="profile-name-input" class="manual-form-input" value="${profile.name || ''}" placeholder="Your name" />
+
+        <label class="settings-label" for="profile-bio-input">Bio</label>
+        <textarea id="profile-bio-input" class="manual-form-input" rows="3" maxlength="500" placeholder="Tell your study group about yourself">${profile.bio || ''}</textarea>
 
         <p class="profile-member-since">Member since ${joinDate}</p>
 
@@ -55,22 +67,22 @@ window.Pages.Profile = {
       <div class="dashboard-stats-grid" style="margin-top: var(--space-lg);">
         <div class="stat-card">
           <span class="stat-icon">📚</span>
-          <p class="stat-value">${pdfs.length}</p>
+            <p class="stat-value">${serverStats?.pdfs ?? pdfs.length}</p>
           <p class="stat-label">PDFs Uploaded</p>
         </div>
         <div class="stat-card">
           <span class="stat-icon">🗂️</span>
-          <p class="stat-value">${flashcards.length}</p>
+            <p class="stat-value">${serverStats?.flashcards ?? flashcards.length}</p>
           <p class="stat-label">Flashcards Made</p>
         </div>
         <div class="stat-card">
           <span class="stat-icon">❓</span>
-          <p class="stat-value">${quizHistory.length}</p>
+            <p class="stat-value">${serverStats?.quizzes ?? quizHistory.length}</p>
           <p class="stat-label">Quizzes Taken</p>
         </div>
         <div class="stat-card">
           <span class="stat-icon">📝</span>
-          <p class="stat-value">${notes.length}</p>
+            <p class="stat-value">${serverStats?.notes ?? notes.length}</p>
           <p class="stat-label">Notes Written</p>
         </div>
       </div>
@@ -103,19 +115,37 @@ window.Pages.Profile = {
       });
     });
 
-    document.getElementById('profile-save-btn').addEventListener('click', () => {
+    document.getElementById('profile-save-btn').addEventListener('click', async () => {
       const name = document.getElementById('profile-name-input').value.trim() || 'Student';
+      const bio = document.getElementById('profile-bio-input').value.trim();
+      const statusEl = document.getElementById('profile-save-status');
+      const saveButton = document.getElementById('profile-save-btn');
 
-      Storage.saveProfile({
+      const updatedProfile = {
         ...profile,
         name,
+        bio,
         avatar: selectedAvatar,
-      });
+      };
 
-      const statusEl = document.getElementById('profile-save-status');
-      statusEl.textContent = '✓ Saved';
+      saveButton.disabled = true;
+      statusEl.textContent = 'Saving...';
       statusEl.classList.add('settings-save-status-visible');
-      setTimeout(() => statusEl.classList.remove('settings-save-status-visible'), 2000);
+      try {
+        const response = await Auth.request('/api/profile', {
+          method: 'PUT',
+          body: JSON.stringify({ name, bio, avatar: selectedAvatar }),
+        });
+        Storage.saveProfile({ ...updatedProfile, ...response.user });
+        Auth.user = { ...Auth.user, ...response.user };
+        statusEl.textContent = '✓ Saved';
+      } catch (error) {
+        Storage.saveProfile(updatedProfile);
+        statusEl.textContent = `Could not save: ${error.message}`;
+      } finally {
+        saveButton.disabled = false;
+        setTimeout(() => statusEl.classList.remove('settings-save-status-visible'), 2000);
+      }
     });
 
     document.getElementById('reset-data-btn').addEventListener('click', async () => {
