@@ -111,8 +111,25 @@ def presence_payload(entry):
         "pdfId": entry.get("pdfId"),
         "currentPage": entry.get("currentPage", 1),
         "startedAt": entry["startedAt"],
-        "status": "studying",
+        "status": entry.get("status", "online"),
+        "online": True,
     }
+
+
+def broadcast_group_presence(group_id):
+    if not group_id:
+        return
+    emit(
+        "presence_snapshot",
+        {
+            "members": [
+                presence_payload(item)
+                for item in presence_by_sid.values()
+                if item.get("groupId") == group_id
+            ]
+        },
+        to=f"group:{group_id}",
+    )
 
 
 @socketio.on("connect")
@@ -125,13 +142,21 @@ def socket_connect():
         "name": user.get("name", "Student"),
         "avatar": user.get("avatar", "🧑‍🎓"),
         "startedAt": now_utc().isoformat(),
+        "status": "online",
     }
     join_room(f"user:{user['_id']}")
 
 
 @socketio.on("disconnect")
 def socket_disconnect():
-    presence_by_sid.pop(request.sid, None)
+    entry = presence_by_sid.pop(request.sid, None)
+    if entry and entry.get("groupId"):
+        emit(
+            "presence_offline",
+            {"userId": entry["userId"], "name": entry["name"], "online": False},
+            to=f"group:{entry['groupId']}",
+        )
+        broadcast_group_presence(entry["groupId"])
 
 
 @socketio.on("join_group")
@@ -143,18 +168,9 @@ def socket_join_group(data):
     if not group_member(get_db(), ObjectId(group_id), ObjectId(entry["userId"])):
         return
     entry["groupId"] = group_id
+    entry["status"] = "online"
     join_room(f"group:{group_id}")
-    emit(
-        "presence_snapshot",
-        {
-            "members": [
-                presence_payload(item)
-                for item in presence_by_sid.values()
-                if item.get("groupId") == group_id
-            ]
-        },
-        to=f"group:{group_id}",
-    )
+    broadcast_group_presence(group_id)
 
 
 @socketio.on("read_message")
@@ -192,17 +208,7 @@ def socket_leave_group(data):
         entry.pop("groupId", None)
     if group_id:
         leave_room(f"group:{group_id}")
-        emit(
-            "presence_snapshot",
-            {
-                "members": [
-                    presence_payload(item)
-                    for item in presence_by_sid.values()
-                    if item.get("groupId") == group_id
-                ]
-            },
-            to=f"group:{group_id}",
-        )
+        broadcast_group_presence(group_id)
 
 
 @socketio.on("study_started")
@@ -214,9 +220,11 @@ def socket_study_started(data):
         {
             "pdfId": str((data or {}).get("pdfId", "")),
             "currentPage": max(1, int((data or {}).get("currentPage", 1))),
+            "status": "studying",
         }
     )
     emit("presence_updated", presence_payload(entry), to=f"group:{entry['groupId']}")
+    emit("study_timer_started", presence_payload(entry), to=f"group:{entry['groupId']}")
 
 
 @socketio.on("study_updated")
@@ -231,8 +239,28 @@ def socket_study_stopped():
         return
     group_id = entry.get("groupId")
     entry.pop("pdfId", None)
+    entry["status"] = "online"
     if group_id:
         emit("presence_updated", presence_payload(entry), to=f"group:{group_id}")
+        emit("study_timer_stopped", {"userId": entry["userId"]}, to=f"group:{group_id}")
+
+
+@socketio.on("study_paused")
+def socket_study_paused():
+    entry = presence_by_sid.get(request.sid)
+    if not entry or not entry.get("groupId"):
+        return
+    entry["status"] = "paused"
+    emit("study_timer_paused", presence_payload(entry), to=f"group:{entry['groupId']}")
+
+
+@socketio.on("study_resumed")
+def socket_study_resumed():
+    entry = presence_by_sid.get(request.sid)
+    if not entry or not entry.get("groupId"):
+        return
+    entry["status"] = "studying"
+    emit("study_timer_resumed", presence_payload(entry), to=f"group:{entry['groupId']}")
 
 
 def get_db():
@@ -1092,6 +1120,17 @@ def finish_study_session(user, session_id):
     total_seconds = next(lifetime, {}).get("seconds", 0)
     if total_seconds >= 10 * 3600:
         award_achievement(database, user["_id"], "ten_hours")
+    leaderboard_payload = {
+        "userId": str(user["_id"]),
+        "hours": round(total_seconds / 3600, 2),
+    }
+    socketio.emit("leaderboard_updated", leaderboard_payload)
+    if record.get("groupId"):
+        socketio.emit(
+            "group_leaderboard_updated",
+            leaderboard_payload,
+            to=f"group:{record['groupId']}",
+        )
     return jsonify(session=session_payload(record))
 
 

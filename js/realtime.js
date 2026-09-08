@@ -48,6 +48,14 @@ const Realtime = {
         if (this.socket) this.socket.emit('study_stopped');
     },
 
+    studyPaused() {
+        if (this.socket) this.socket.emit('study_paused');
+    },
+
+    studyResumed() {
+        if (this.socket) this.socket.emit('study_resumed');
+    },
+
     readMessage(messageId) {
         if (this.socket) this.socket.emit('read_message', { messageId });
     },

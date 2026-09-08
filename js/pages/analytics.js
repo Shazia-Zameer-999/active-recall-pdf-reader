@@ -18,7 +18,7 @@ window.Pages.Analytics = {
     const readingHistory = Storage.getReadingHistory();
     const quizHistory = Storage.getQuizHistory();
     const recallSessions = Storage.getRecallSessions();
-    const flashcards = Storage.getFlashcards(); 
+    const flashcards = Storage.getFlashcards();
     content.innerHTML = `
       <div class="dashboard-panel" style="margin-bottom: var(--space-md);">
         <h3 class="dashboard-panel-title">Reading Activity (last 12 weeks)</h3>
@@ -45,6 +45,11 @@ window.Pages.Analytics = {
         <h3 class="dashboard-panel-title">Revision Calendar — Next 14 Days</h3>
         <div id="revision-calendar-container"></div>
       </div>
+
+      <div class="dashboard-panel">
+        <h3 class="dashboard-panel-title">Global Study Leaderboard</h3>
+        <div id="leaderboard-container"><p class="annotations-empty">Loading leaderboard...</p></div>
+      </div>
     `;
 
     this.renderHeatmap(readingHistory);
@@ -52,6 +57,22 @@ window.Pages.Analytics = {
     this.renderRecallTrend(recallSessions);
     this.renderWeakTopics(recallSessions, quizHistory);
     this.renderRevisionCalendar(flashcards);
+    this.loadLeaderboard();
+    Realtime.on('leaderboard_updated', () => this.loadLeaderboard());
+  },
+
+  async loadLeaderboard() {
+    try {
+      const data = await Auth.request('/api/leaderboards');
+      const container = document.getElementById('leaderboard-container');
+      if (!container) return;
+      container.innerHTML = data.leaderboard.length
+        ? data.leaderboard.map((entry) => `<p>${entry.rank}. ${this.escapeHtml(entry.user.name)} · ${entry.hours} hours</p>`).join('')
+        : '<p class="annotations-empty">Complete a study session to appear here.</p>';
+    } catch (error) {
+      const container = document.getElementById('leaderboard-container');
+      if (container) container.innerHTML = `<p class="annotations-empty">${this.escapeHtml(error.message)}</p>`;
+    }
   },
 
   renderRevisionCalendar(flashcards) {
@@ -63,13 +84,13 @@ window.Pages.Analytics = {
     container.innerHTML = `
       <div class="revision-calendar">
         ${entries
-          .map(([dateStr, count]) => {
-            const date = new Date(dateStr);
-            const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' });
-            const dateLabel = date.getDate();
-            const heightPercent = count > 0 ? Math.max(15, (count / maxCount) * 100) : 4;
+        .map(([dateStr, count]) => {
+          const date = new Date(dateStr);
+          const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' });
+          const dateLabel = date.getDate();
+          const heightPercent = count > 0 ? Math.max(15, (count / maxCount) * 100) : 4;
 
-            return `
+          return `
               <div class="revision-day-col">
                 <div class="revision-bar ${count > 0 ? 'revision-bar-active' : ''}" style="height: ${heightPercent}%" title="${count} card${count === 1 ? '' : 's'} due"></div>
                 <span class="revision-day-count">${count > 0 ? count : ''}</span>
@@ -77,10 +98,16 @@ window.Pages.Analytics = {
                 <span class="revision-date-label">${dateLabel}</span>
               </div>
             `;
-          })
-          .join('')}
+        })
+        .join('')}
       </div>
     `;
+  },
+
+  escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+    }[character]));
   },
   // --- Reading heatmap: 12 weeks x 7 days grid ---
   renderHeatmap(readingHistory) {
@@ -174,12 +201,12 @@ window.Pages.Analytics = {
       <svg viewBox="0 0 ${width} ${height}" class="trend-chart">
         <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
         ${values
-          .map((v, i) => {
-            const x = padding + i * stepX;
-            const y = height - padding - (v / 100) * (height - padding * 2);
-            return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" />`;
-          })
-          .join('')}
+        .map((v, i) => {
+          const x = padding + i * stepX;
+          const y = height - padding - (v / 100) * (height - padding * 2);
+          return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" />`;
+        })
+        .join('')}
       </svg>
       <p class="trend-latest">Latest: <strong>${lastValue}%</strong></p>
     `;
@@ -217,15 +244,15 @@ window.Pages.Analytics = {
     container.innerHTML = `
       <div class="weak-topics-list">
         ${sorted
-          .map(
-            ([question, count]) => `
+        .map(
+          ([question, count]) => `
           <div class="weak-topic-item">
             <span class="weak-topic-count">${count}×</span>
             <span class="weak-topic-question">${question}</span>
           </div>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     `;
   },

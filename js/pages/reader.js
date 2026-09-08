@@ -114,6 +114,8 @@ window.Pages.Reader = {
       this.attachAnnotationToolbarListeners();
       this.attachTouchNavigation();
       this.attachFullViewListener();
+      const groupId = Router.getQueryParam('groupId') || localStorage.getItem('impactx_active_group_id');
+      if (groupId) Realtime.joinGroup(groupId);
       try {
         await StudySessions.start(this.state.pdfId, this.state.currentPage);
         Realtime.studyStarted(this.state.pdfId, this.state.currentPage);
@@ -128,6 +130,12 @@ window.Pages.Reader = {
       console.error('Failed to load PDF:', error);
       canvasContainer.innerHTML = `<div class="empty-state"><p>Couldn't load this PDF. It may be corrupted.</p></div>`;
     }
+  },
+
+  cleanup() {
+    Realtime.studyStopped();
+    Realtime.leaveGroup();
+    localStorage.removeItem('impactx_active_group_id');
   },
 
   async fitToWidth() {

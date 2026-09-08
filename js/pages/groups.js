@@ -1,4 +1,13 @@
 window.Pages.Groups = {
+    cleanup() {
+        if (this.presenceTimer) clearInterval(this.presenceTimer);
+        this.presenceTimer = null;
+        if (!window.location.hash.startsWith('#/reader')) {
+            localStorage.removeItem('impactx_active_group_id');
+            Realtime.leaveGroup();
+        }
+    },
+
     render() {
         const groupId = Router.getQueryParam('id');
         if (groupId) return this.renderDetailShell(groupId);
@@ -62,18 +71,47 @@ window.Pages.Groups = {
     },
 
     async loadDetail(groupId) {
+        localStorage.setItem('impactx_active_group_id', groupId);
         const data = await Auth.request(`/api/groups/${groupId}`);
         document.getElementById('group-detail-title').textContent = data.group.name;
         document.getElementById('group-members-list').innerHTML = data.group.members.map((member) => `<p>${this.escapeHtml(member.user.avatar || '🧑‍🎓')} ${this.escapeHtml(member.user.name)} <small>${this.escapeHtml(member.role)}</small></p>`).join('');
         const messages = await Auth.request(`/api/groups/${groupId}/messages`);
         this.renderMessages(messages.messages);
         Realtime.joinGroup(groupId);
+        this.renderPresence = (members) => {
+            const list = document.getElementById('group-presence-list');
+            if (!list) return;
+            list.innerHTML = members.map((member) => {
+                const started = member.startedAt ? Date.parse(member.startedAt) : Date.now();
+                const seconds = Math.max(0, Math.floor((Date.now() - started) / 1000));
+                const duration = `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+                const state = member.status === 'studying' ? `📖 page ${member.currentPage} · ⏱ ${duration}` : member.status;
+                return `<p data-presence-user="${member.userId}">${member.online === false ? '⚪' : '🟢'} ${this.escapeHtml(member.name)} · ${this.escapeHtml(state)}</p>`;
+            }).join('');
+        };
         Realtime.on('presence_snapshot', (presence) => {
-            document.getElementById('group-presence-list').innerHTML = presence.members.map((member) => `<p>🟢 ${this.escapeHtml(member.name)} ${member.pdfId ? `· page ${member.currentPage}` : ''}</p>`).join('');
+            this.currentPresence = presence.members;
+            this.renderPresence(this.currentPresence);
         });
         Realtime.on('presence_updated', (member) => {
-            const list = document.getElementById('group-presence-list');
-            if (list && !list.textContent.includes(member.name)) list.insertAdjacentHTML('beforeend', `<p>🟢 ${this.escapeHtml(member.name)} · page ${member.currentPage}</p>`);
+            this.currentPresence = (this.currentPresence || []).filter((item) => item.userId !== member.userId).concat(member);
+            this.renderPresence(this.currentPresence);
+        });
+        Realtime.on('presence_offline', (member) => {
+            this.currentPresence = (this.currentPresence || []).map((item) => item.userId === member.userId ? { ...item, ...member } : item);
+            this.renderPresence(this.currentPresence);
+        });
+        Realtime.on('study_timer_stopped', (timer) => {
+            this.currentPresence = (this.currentPresence || []).map((item) => item.userId === timer.userId ? { ...item, status: 'online', pdfId: null } : item);
+            this.renderPresence(this.currentPresence);
+        });
+        Realtime.on('study_timer_paused', (member) => {
+            this.currentPresence = (this.currentPresence || []).map((item) => item.userId === member.userId ? member : item);
+            this.renderPresence(this.currentPresence);
+        });
+        Realtime.on('study_timer_resumed', (member) => {
+            this.currentPresence = (this.currentPresence || []).map((item) => item.userId === member.userId ? member : item);
+            this.renderPresence(this.currentPresence);
         });
         Realtime.on('message_created', (message) => this.renderMessages([...this.currentMessages || [], message]));
         Realtime.on('message_read', (receipt) => {
@@ -85,6 +123,7 @@ window.Pages.Groups = {
             const status = document.getElementById('group-typing-status');
             if (status) status.textContent = typing.isTyping ? `${typing.name} is typing...` : '';
         });
+        this.presenceTimer = setInterval(() => this.renderPresence(this.currentPresence || []), 1000);
         const chatInput = document.getElementById('group-chat-input');
         let typingTimer;
         chatInput.addEventListener('input', () => {

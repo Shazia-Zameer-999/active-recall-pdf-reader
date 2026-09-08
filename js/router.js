@@ -14,6 +14,7 @@ const routes = {
 };
 
 const Router = {
+  activePage: null,
   init() {
     window.addEventListener('hashchange', () => this.render());
     this.render();
@@ -37,10 +38,15 @@ const Router = {
 
   render() {
     const path = this.getCurrentPath();
+    if (this.activePage && this.activePage !== routes[path] && typeof this.activePage.cleanup === 'function') {
+      this.activePage.cleanup();
+    }
     if (this.getCurrentPath() !== '/reader' && StudySessions.activeId) {
       StudySessions.finish();
+      Realtime.studyStopped();
     }
     const page = routes[path];
+    this.activePage = page;
     const app = document.getElementById('app');
 
     if (path !== '/' && !Auth.user) {

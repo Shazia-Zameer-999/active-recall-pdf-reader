@@ -33,10 +33,12 @@ const StudySessions = {
     async pause() {
         if (!this.activeId) return;
         await Auth.request(`/api/study-sessions/${this.activeId}/pause`, { method: 'POST' });
+        Realtime.studyPaused();
     },
 
     async resume() {
         if (!this.activeId) return;
         await Auth.request(`/api/study-sessions/${this.activeId}/resume`, { method: 'POST' });
+        Realtime.studyResumed();
     },
 };
