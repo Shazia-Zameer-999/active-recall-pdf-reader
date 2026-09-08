@@ -431,6 +431,6 @@ def serve_static_file(file_path):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "5000"))
+    port = int(os.getenv("PORT", "5001"))
     print(f"Active Recall is running at http://localhost:{port}")
     app.run(host="127.0.0.1", port=port)

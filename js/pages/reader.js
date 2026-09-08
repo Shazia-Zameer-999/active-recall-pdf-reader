@@ -4,11 +4,15 @@ window.Pages.Reader = {
     currentPage: 1,
     totalPages: 0,
     scale: 1.2,
+    fitWidth: true,
     pdfId: null,
     pdfName: '',
+    renderToken: 0,
   },
 
   render() {
+    document.body.classList.remove('reader-fullscreen');
+
     return `
       <div class="reader-page">
         <div class="reader-toolbar">
@@ -29,6 +33,7 @@ window.Pages.Reader = {
           <span class="toolbar-divider"></span>
 
           <button id="bookmark-page-btn" class="btn btn-secondary-sm" title="Bookmark this page">🔖 Bookmark</button>
+          <button id="full-view-btn" class="btn btn-secondary-sm" title="Open reader in full view" aria-pressed="false">⛶ Full View</button>
         </div>
 
         <div class="annotation-toolbar">
@@ -105,6 +110,11 @@ window.Pages.Reader = {
 
       this.attachToolbarListeners();
       this.attachAnnotationToolbarListeners();
+      this.attachTouchNavigation();
+      this.attachFullViewListener();
+      window.addEventListener('resize', () => {
+        if (this.state.fitWidth) this.fitToWidth();
+      }, { passive: true });
       await this.fitToWidth();
     } catch (error) {
       console.error('Failed to load PDF:', error);
@@ -113,17 +123,24 @@ window.Pages.Reader = {
   },
 
   async fitToWidth() {
+    if (!this.state.pdfDoc) return;
     const page = await this.state.pdfDoc.getPage(this.state.currentPage);
-    const containerWidth = document.getElementById('reader-canvas-container').clientWidth - 40;
+    const containerWidth = Math.max(
+      1,
+      document.getElementById('reader-canvas-container').clientWidth - 24
+    );
     const unscaledViewport = page.getViewport({ scale: 1 });
     this.state.scale = containerWidth / unscaledViewport.width;
+    this.state.fitWidth = true;
     document.getElementById('zoom-level').textContent = `${Math.round(this.state.scale * 100)}%`;
     await this.renderPage(this.state.currentPage);
   },
 
   async renderPage(pageNumber) {
+    const renderToken = ++this.state.renderToken;
     const canvasContainer = document.getElementById('reader-canvas-container');
     const page = await this.state.pdfDoc.getPage(pageNumber);
+    if (renderToken !== this.state.renderToken) return;
     const viewport = page.getViewport({ scale: this.state.scale });
 
     canvasContainer.innerHTML = `
@@ -154,6 +171,7 @@ window.Pages.Reader = {
     const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
     await page.render({ canvasContext: context, viewport, transform }).promise;
+    if (renderToken !== this.state.renderToken) return;
 
     Storage.updateReadingProgress(this.state.pdfId, pageNumber, this.state.totalPages);
 
@@ -245,12 +263,14 @@ window.Pages.Reader = {
 
     zoomInBtn.addEventListener('click', () => {
       this.state.scale = Math.min(this.state.scale + 0.2, 3);
+      this.state.fitWidth = false;
       zoomLevelEl.textContent = `${Math.round(this.state.scale * 100)}%`;
       this.renderPage(this.state.currentPage);
     });
 
     zoomOutBtn.addEventListener('click', () => {
       this.state.scale = Math.max(this.state.scale - 0.2, 0.4);
+      this.state.fitWidth = false;
       zoomLevelEl.textContent = `${Math.round(this.state.scale * 100)}%`;
       this.renderPage(this.state.currentPage);
     });
@@ -258,6 +278,62 @@ window.Pages.Reader = {
     fitWidthBtn.addEventListener('click', () => this.fitToWidth());
 
     document.getElementById('bookmark-page-btn').addEventListener('click', () => this.showBookmarkPopup());
+  },
+
+  attachTouchNavigation() {
+    const container = document.getElementById('reader-canvas-container');
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+
+    container.addEventListener('touchstart', (event) => {
+      if (Annotations.state.tool !== 'none' || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startTime = Date.now();
+    }, { passive: true });
+
+    container.addEventListener('touchend', (event) => {
+      if (Annotations.state.tool !== 'none' || !startTime || event.changedTouches.length !== 1) return;
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const elapsed = Date.now() - startTime;
+      startTime = 0;
+
+      if (elapsed > 650 || Math.abs(deltaX) < 56 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+      this.goToPage(this.state.currentPage + (deltaX < 0 ? 1 : -1));
+    }, { passive: true });
+  },
+
+  attachFullViewListener() {
+    const button = document.getElementById('full-view-btn');
+    if (!button) return;
+
+    const updateButton = () => {
+      const isFullView = document.body.classList.contains('reader-fullscreen');
+      button.textContent = isFullView ? '⛶ Exit Full View' : '⛶ Full View';
+      button.title = isFullView ? 'Exit full view' : 'Open reader in full view';
+      button.setAttribute('aria-pressed', String(isFullView));
+    };
+
+    const toggle = () => {
+      document.body.classList.toggle('reader-fullscreen');
+      updateButton();
+      if (this.state.fitWidth) this.fitToWidth();
+    };
+
+    button.addEventListener('click', toggle);
+    this.state.exitFullView = () => {
+      if (!document.body.classList.contains('reader-fullscreen')) return;
+      document.body.classList.remove('reader-fullscreen');
+      updateButton();
+      if (this.state.fitWidth) this.fitToWidth();
+    };
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.state.exitFullView();
+    }, { once: false });
   },
 
   showBookmarkPopup() {
@@ -335,7 +411,8 @@ window.Pages.Reader = {
   goToPage(pageNum) {
     if (pageNum < 1 || pageNum > this.state.totalPages) return;
     this.state.currentPage = pageNum;
-    document.getElementById('page-input').value = pageNum;
+    const pageInput = document.getElementById('page-input');
+    if (pageInput) pageInput.value = pageNum;
     this.renderPage(pageNum);
   },
 };
