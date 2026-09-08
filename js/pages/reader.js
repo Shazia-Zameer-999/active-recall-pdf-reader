@@ -118,7 +118,7 @@ window.Pages.Reader = {
       if (groupId) Realtime.joinGroup(groupId);
       try {
         await StudySessions.start(this.state.pdfId, this.state.currentPage);
-        Realtime.studyStarted(this.state.pdfId, this.state.currentPage);
+        Realtime.studyStarted(this.state.pdfId, this.state.currentPage, this.state.pdfName);
       } catch (error) {
         console.error('Study session start failed:', error);
       }

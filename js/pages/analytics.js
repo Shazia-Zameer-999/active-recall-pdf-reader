@@ -58,7 +58,8 @@ window.Pages.Analytics = {
     this.renderWeakTopics(recallSessions, quizHistory);
     this.renderRevisionCalendar(flashcards);
     this.loadLeaderboard();
-    Realtime.on('leaderboard_updated', () => this.loadLeaderboard());
+    Realtime.offScope('analytics');
+    Realtime.on('leaderboard_updated', () => this.loadLeaderboard(), 'analytics');
   },
 
   async loadLeaderboard() {

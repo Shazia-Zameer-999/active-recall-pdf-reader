@@ -2,6 +2,7 @@ window.Pages.Groups = {
     cleanup() {
         if (this.presenceTimer) clearInterval(this.presenceTimer);
         this.presenceTimer = null;
+        Realtime.offScope('group');
         if (!window.location.hash.startsWith('#/reader')) {
             localStorage.removeItem('impactx_active_group_id');
             Realtime.leaveGroup();
@@ -85,44 +86,48 @@ window.Pages.Groups = {
                 const started = member.startedAt ? Date.parse(member.startedAt) : Date.now();
                 const seconds = Math.max(0, Math.floor((Date.now() - started) / 1000));
                 const duration = `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-                const state = member.status === 'studying' ? `📖 page ${member.currentPage} · ⏱ ${duration}` : member.status;
+                const state = member.status === 'studying' ? `📖 ${member.pdfName || 'PDF'} · page ${member.currentPage} · ⏱ ${duration}` : member.status;
                 return `<p data-presence-user="${member.userId}">${member.online === false ? '⚪' : '🟢'} ${this.escapeHtml(member.name)} · ${this.escapeHtml(state)}</p>`;
             }).join('');
         };
         Realtime.on('presence_snapshot', (presence) => {
             this.currentPresence = presence.members;
             this.renderPresence(this.currentPresence);
-        });
+        }, 'group');
         Realtime.on('presence_updated', (member) => {
             this.currentPresence = (this.currentPresence || []).filter((item) => item.userId !== member.userId).concat(member);
             this.renderPresence(this.currentPresence);
-        });
+        }, 'group');
         Realtime.on('presence_offline', (member) => {
             this.currentPresence = (this.currentPresence || []).map((item) => item.userId === member.userId ? { ...item, ...member } : item);
             this.renderPresence(this.currentPresence);
-        });
+        }, 'group');
         Realtime.on('study_timer_stopped', (timer) => {
             this.currentPresence = (this.currentPresence || []).map((item) => item.userId === timer.userId ? { ...item, status: 'online', pdfId: null } : item);
             this.renderPresence(this.currentPresence);
-        });
+        }, 'group');
         Realtime.on('study_timer_paused', (member) => {
             this.currentPresence = (this.currentPresence || []).map((item) => item.userId === member.userId ? member : item);
             this.renderPresence(this.currentPresence);
-        });
+        }, 'group');
         Realtime.on('study_timer_resumed', (member) => {
             this.currentPresence = (this.currentPresence || []).map((item) => item.userId === member.userId ? member : item);
             this.renderPresence(this.currentPresence);
-        });
-        Realtime.on('message_created', (message) => this.renderMessages([...this.currentMessages || [], message]));
+        }, 'group');
+        Realtime.on('group_member_count_updated', (update) => {
+            const heading = document.getElementById('group-detail-title');
+            if (heading && update.groupId === groupId) heading.dataset.memberCount = update.count;
+        }, 'group');
+        Realtime.on('message_created', (message) => this.renderMessages([...this.currentMessages || [], message]), 'group');
         Realtime.on('message_read', (receipt) => {
             const message = (this.currentMessages || []).find((item) => item.id === receipt.messageId);
             if (message) message.readAt = receipt.readAt;
             this.renderMessages(this.currentMessages || []);
-        });
+        }, 'group');
         Realtime.on('typing', (typing) => {
             const status = document.getElementById('group-typing-status');
             if (status) status.textContent = typing.isTyping ? `${typing.name} is typing...` : '';
-        });
+        }, 'group');
         this.presenceTimer = setInterval(() => this.renderPresence(this.currentPresence || []), 1000);
         const chatInput = document.getElementById('group-chat-input');
         let typingTimer;

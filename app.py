@@ -86,6 +86,7 @@ mongo_db = None
 gridfs_bucket = None
 presence_by_sid = {}
 rate_limit_state = {}
+socket_rate_limit_state = {}
 
 
 @app.after_request
@@ -102,6 +103,65 @@ def socket_user():
     return get_db().users.find_one({"_id": ObjectId(user_id)})
 
 
+def safe_page(value, default=1):
+    try:
+        return max(1, min(int(value), 100000))
+    except (TypeError, ValueError):
+        return default
+
+
+def socket_rate_limited(event_name, limit=60, window_seconds=60):
+    now = time.monotonic()
+    key = (request.sid, event_name)
+    timestamps = [
+        stamp
+        for stamp in socket_rate_limit_state.get(key, [])
+        if now - stamp < window_seconds
+    ]
+    if len(timestamps) >= limit:
+        return True
+    timestamps.append(now)
+    socket_rate_limit_state[key] = timestamps
+    return False
+
+
+def friend_user_ids(user_id):
+    database = get_db()
+    return [
+        (
+            record["recipientId"]
+            if record["requesterId"] == user_id
+            else record["requesterId"]
+        )
+        for record in database.friendships.find(
+            {
+                "status": "accepted",
+                "$or": [{"requesterId": user_id}, {"recipientId": user_id}],
+            },
+            {"requesterId": 1, "recipientId": 1},
+        )
+    ]
+
+
+def user_has_live_socket(user_id):
+    return any(
+        entry.get("userId") == str(user_id) for entry in presence_by_sid.values()
+    )
+
+
+def emit_friend_notification(user_id, notification_type, payload):
+    database = get_db()
+    for friend_id in friend_user_ids(user_id):
+        notification = create_notification(
+            database, friend_id, notification_type, payload
+        )
+        socketio.emit(
+            "notification_created",
+            notification_payload(notification),
+            to=f"user:{friend_id}",
+        )
+
+
 def presence_payload(entry):
     return {
         "userId": entry["userId"],
@@ -109,8 +169,9 @@ def presence_payload(entry):
         "avatar": entry.get("avatar", "🧑‍🎓"),
         "groupId": entry.get("groupId"),
         "pdfId": entry.get("pdfId"),
+        "pdfName": entry.get("pdfName"),
         "currentPage": entry.get("currentPage", 1),
-        "startedAt": entry["startedAt"],
+        "startedAt": entry.get("studyStartedAt") or entry["startedAt"],
         "status": entry.get("status", "online"),
         "online": True,
     }
@@ -132,11 +193,25 @@ def broadcast_group_presence(group_id):
     )
 
 
+def broadcast_group_member_count(group_id):
+    if not group_id:
+        return
+    count = get_db().group_members.count_documents(
+        {"groupId": ObjectId(group_id), "status": "active"}
+    )
+    socketio.emit(
+        "group_member_count_updated",
+        {"groupId": group_id, "count": count},
+        to=f"group:{group_id}",
+    )
+
+
 @socketio.on("connect")
 def socket_connect():
     user = socket_user()
     if not user:
         return False
+    was_online = user_has_live_socket(user["_id"])
     presence_by_sid[request.sid] = {
         "userId": str(user["_id"]),
         "name": user.get("name", "Student"),
@@ -145,11 +220,19 @@ def socket_connect():
         "status": "online",
     }
     join_room(f"user:{user['_id']}")
+    if not was_online:
+        emit_friend_notification(
+            user["_id"],
+            "friend_online",
+            {"userId": str(user["_id"]), "name": user.get("name", "Student")},
+        )
 
 
 @socketio.on("disconnect")
 def socket_disconnect():
     entry = presence_by_sid.pop(request.sid, None)
+    socket_rate_limit_state.pop((request.sid, "typing"), None)
+    socket_rate_limit_state.pop((request.sid, "send_message"), None)
     if entry and entry.get("groupId"):
         emit(
             "presence_offline",
@@ -157,6 +240,12 @@ def socket_disconnect():
             to=f"group:{entry['groupId']}",
         )
         broadcast_group_presence(entry["groupId"])
+    if entry and not user_has_live_socket(entry["userId"]):
+        emit_friend_notification(
+            ObjectId(entry["userId"]),
+            "friend_offline",
+            {"userId": entry["userId"], "name": entry["name"]},
+        )
 
 
 @socketio.on("join_group")
@@ -167,6 +256,10 @@ def socket_join_group(data):
         return
     if not group_member(get_db(), ObjectId(group_id), ObjectId(entry["userId"])):
         return
+    previous_group_id = entry.get("groupId")
+    if previous_group_id and previous_group_id != group_id:
+        leave_room(f"group:{previous_group_id}")
+        broadcast_group_presence(previous_group_id)
     entry["groupId"] = group_id
     entry["status"] = "online"
     join_room(f"group:{group_id}")
@@ -216,15 +309,38 @@ def socket_study_started(data):
     entry = presence_by_sid.get(request.sid)
     if not entry or not entry.get("groupId"):
         return
+    was_studying = entry.get("status") == "studying"
+    active_session = get_db().study_sessions.find_one(
+        {"userId": ObjectId(entry["userId"]), "status": {"$in": ["active", "paused"]}},
+        {"startedAt": 1},
+    )
     entry.update(
         {
             "pdfId": str((data or {}).get("pdfId", "")),
-            "currentPage": max(1, int((data or {}).get("currentPage", 1))),
+            "pdfName": str((data or {}).get("pdfName", ""))[:200],
+            "currentPage": safe_page((data or {}).get("currentPage", 1)),
             "status": "studying",
+            "studyStartedAt": entry.get("studyStartedAt")
+            or (
+                active_session["startedAt"].isoformat()
+                if active_session
+                else now_utc().isoformat()
+            ),
         }
     )
     emit("presence_updated", presence_payload(entry), to=f"group:{entry['groupId']}")
     emit("study_timer_started", presence_payload(entry), to=f"group:{entry['groupId']}")
+    if not was_studying:
+        emit_friend_notification(
+            ObjectId(entry["userId"]),
+            "friend_studying",
+            {
+                "userId": entry["userId"],
+                "name": entry["name"],
+                "pdfId": entry["pdfId"],
+                "currentPage": entry["currentPage"],
+            },
+        )
 
 
 @socketio.on("study_updated")
@@ -239,10 +355,17 @@ def socket_study_stopped():
         return
     group_id = entry.get("groupId")
     entry.pop("pdfId", None)
+    entry.pop("pdfName", None)
+    entry.pop("studyStartedAt", None)
     entry["status"] = "online"
     if group_id:
         emit("presence_updated", presence_payload(entry), to=f"group:{group_id}")
         emit("study_timer_stopped", {"userId": entry["userId"]}, to=f"group:{group_id}")
+        emit_friend_notification(
+            ObjectId(entry["userId"]),
+            "friend_study_stopped",
+            {"userId": entry["userId"], "name": entry["name"]},
+        )
 
 
 @socketio.on("study_paused")
@@ -765,6 +888,7 @@ def join_group(user, group_id):
         {"$set": {"role": "member", "status": "active", "joinedAt": now}},
         upsert=True,
     )
+    broadcast_group_member_count(group_id)
     return jsonify(success=True)
 
 
@@ -788,6 +912,7 @@ def leave_group(user, group_id):
     )
     if result.matched_count == 0:
         return jsonify(error="Owners cannot leave their group"), 400
+    broadcast_group_member_count(group_id)
     return jsonify(success=True)
 
 
@@ -1444,6 +1569,8 @@ def leaderboards(user):
 
 @socketio.on("send_message")
 def socket_send_message(data):
+    if socket_rate_limited("send_message", limit=30, window_seconds=60):
+        return
     user = socket_user()
     group_id = str((data or {}).get("groupId", ""))
     body = str((data or {}).get("body", "")).strip()[:2000]
@@ -1467,6 +1594,8 @@ def socket_send_message(data):
 
 @socketio.on("typing")
 def socket_typing(data):
+    if socket_rate_limited("typing", limit=120, window_seconds=60):
+        return
     entry = presence_by_sid.get(request.sid)
     group_id = str((data or {}).get("groupId", ""))
     if entry and group_id and entry.get("groupId") == group_id:
