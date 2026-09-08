@@ -11,10 +11,11 @@ window.Pages.Landing = {
         </header>
 
         <section class="landing-hero">
-          <h1>Read less. Remember more.</h1>
+          <span class="hero-kicker">ACTIVE RECALL / AI PDF READER</span>
+          <h1>Turn reading into remembering.</h1>
           <p class="hero-subtitle">
-            An AI-powered PDF reader that quizzes you as you read, so what you
-            study actually sticks.
+            Read smarter with an AI study companion that turns your PDFs into
+            questions, flashcards, and lasting memory.
           </p>
           <a href="#auth-form" class="btn btn-primary btn-lg">Start Studying</a>
         </section>

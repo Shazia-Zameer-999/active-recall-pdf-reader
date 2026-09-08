@@ -68,7 +68,10 @@ deletion, CSRF-protected sessions, user-scoped study data, and GridFS-backed PDF
 storage. Passwords are stored only as Werkzeug password hashes.
 
 For deployment, add all `.env` values yourself to the environment used by your
-hosting provider. The browser never receives the Gemini or MongoDB credentials.
+hosting provider. On Vercel, add `SECRET_KEY` as a persistent environment
+variable and set `SESSION_COOKIE_SECURE=true`. Do not let the deployment
+generate a new secret per instance. The browser never receives the Gemini or
+MongoDB credentials.
 
 ## Project Structure
 

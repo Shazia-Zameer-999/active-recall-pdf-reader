@@ -1,5 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 :root {
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-main: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Space Grotesk', var(--font-main);
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
@@ -13,17 +16,17 @@
 }
 
 body[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f6f8;
+  --bg-primary: #fffdf8;
+  --bg-secondary: #f4f0e8;
   --bg-card: #ffffff;
-  --text-primary: #1a1a1a;
-  --text-secondary: #6b7280;
-  --border-color: #e5e7eb;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
+  --text-primary: #182321;
+  --text-secondary: #66716d;
+  --border-color: #e5dfd4;
+  --accent: #e35d45;
+  --accent-hover: #c94a35;
   --success: #16a34a;
   --danger: #dc2626;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow: 0 16px 40px rgba(39, 34, 25, 0.09);
 }
 
 body[data-theme="dark"] {

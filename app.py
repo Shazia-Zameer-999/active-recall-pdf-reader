@@ -49,18 +49,31 @@ def load_env_file():
 
 load_env_file()
 app = Flask(__name__)
+configured_secret_key = os.getenv("SECRET_KEY")
+if not configured_secret_key and os.getenv("VERCEL") == "1":
+    raise RuntimeError("SECRET_KEY must be configured in Vercel environment variables")
 app.config.update(
-    SECRET_KEY=os.getenv("SECRET_KEY") or secrets.token_hex(32),
+    SECRET_KEY=configured_secret_key or secrets.token_hex(32),
     MAX_CONTENT_LENGTH=25 * 1024 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
+    SESSION_COOKIE_SECURE=(
+        os.getenv("VERCEL") == "1"
+        or os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+    ),
     PERMANENT_SESSION_LIFETIME=timedelta(days=7),
 )
 
 mongo_client = None
 mongo_db = None
 gridfs_bucket = None
+
+
+@app.after_request
+def disable_api_caching(response):
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def get_db():
