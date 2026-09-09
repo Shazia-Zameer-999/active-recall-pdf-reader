@@ -29,9 +29,18 @@ const Layout = {
         <div id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>
         <aside class="sidebar">
           <div class="sidebar-brand">
-            <span class="brand-icon">🧠</span>
-            <span class="brand-name">Recall</span>
-          </div>
+    <span class="brand-icon">
+        <img
+            id="brand-logo"
+            src="assets/${Theme.current() === 'dark' ? 'main2.svg' : 'main.svg'}"
+            alt="ImpactX Logo"
+        >
+    </span>
+
+    <span class="brand-name">
+        ImpactX
+    </span>
+</div>
           <nav class="sidebar-nav">${navLinksHtml}</nav>
         </aside>
 
@@ -79,9 +88,15 @@ const Layout = {
     const themeBtn = document.getElementById('theme-toggle-btn');
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {
-        Theme.toggle();
-        document.getElementById('theme-icon').textContent =
-          Theme.current() === 'dark' ? '☀️' : '🌙';
+          Theme.toggle();
+
+          const isDark = Theme.current() === 'dark';
+
+          document.getElementById('theme-icon').textContent =
+              isDark ? '☀️' : '🌙';
+
+          document.getElementById('brand-logo').src =
+              isDark ? 'assets/main2.svg' : 'assets/main.svg';
       });
     }
 

@@ -6,10 +6,18 @@ window.Pages.Landing = {
     return `
       <div class="landing">
         <header class="landing-nav">
-          <div class="brand">
-                        <span class="brand-icon"><img src="assets/favicon.ico" alt="Recall Logo"></span>
+          <div class=" sidebar-brand">
+                        <span class="brand-icon">
+        <img
+            id="brand-logo"
+            src="assets/${Theme.current() === 'dark' ? 'main2.svg' : 'main.svg'}"
+            alt="ImpactX Logo"
+        >
+    </span>
 
-            <span class="brand-name">ImpactX</span>
+    <span class="brand-name">
+        ImpactX
+    </span>
           </div>
           <button id="landing-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
             <span id="landing-theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
@@ -86,14 +94,23 @@ window.Pages.Landing = {
   },
 
   afterRender() {
-    const themeBtn = document.getElementById('landing-theme-toggle');
-    if (themeBtn) {
-      themeBtn.addEventListener('click', () => {
+    const themeBtn = document.getElementById("landing-theme-toggle");
+
+if (themeBtn) {
+    const logo = document.getElementById("brand-logo");
+    const icon = document.getElementById("landing-theme-icon");
+
+    themeBtn.addEventListener("click", () => {
         Theme.toggle();
-        document.getElementById('landing-theme-icon').textContent =
-          Theme.current() === 'dark' ? '☀️' : '🌙';
-      });
-    }
+
+        const isDark = Theme.current() === "dark";
+
+        icon.textContent = isDark ? "☀️" : "🌙";
+        logo.src = isDark
+            ? "assets/main2.svg"
+            : "assets/main.svg";
+    });
+}
 
     const form = document.getElementById('auth-form-element');
     if (!form) return;
