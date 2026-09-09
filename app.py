@@ -601,16 +601,16 @@ def search_users(user):
         return jsonify(users=[])
     pattern = re.compile(re.escape(query), re.IGNORECASE)
     matches = (
-        get_db()
-        .users.find(
-            {
-                "_id": {"$ne": user["_id"]},
-                "$or": [{"name": pattern}, {"email": pattern}],
-            },
-            {"email": 1, "name": 1, "avatar": 1, "bio": 1, "createdAt": 1},
-        )
-        .limit(20)
+    get_db()
+    .users.find(
+        {
+            "_id": {"$ne": user["_id"]},
+            "$or": [{"name": pattern}, {"email": pattern}],
+        },
+        {"email": 1, "name": 1, "username": 1, "avatar": 1, "bio": 1, "createdAt": 1},
     )
+    .limit(20)
+)
     return jsonify(users=[public_user(match) for match in matches])
 
 
