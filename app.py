@@ -62,9 +62,8 @@ load_env_file()
 app = Flask(__name__)
 socketio = SocketIO(
     app,
-    cors_allowed_origins=os.getenv("SOCKETIO_CORS_ORIGINS") or None,
+    cors_allowed_origins=os.getenv("SOCKETIO_CORS_ORIGINS"),
     manage_session=True,
-    async_mode="threading",
 )
 configured_secret_key = os.getenv("SECRET_KEY")
 if not configured_secret_key and os.getenv("VERCEL") == "1":
