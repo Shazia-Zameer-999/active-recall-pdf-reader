@@ -173,6 +173,12 @@ window.Pages.Library = {
       return;
     }
 
+    const MAX_PDF_BYTES = 25 * 1024 * 1024; // matches MAX_CONTENT_LENGTH in app.py
+    if (file.size > MAX_PDF_BYTES) {
+      statusEl.innerHTML = `<p class="status-error">"${file.name}" is too large. PDFs must be 25 MB or smaller.</p>`;
+      return;
+    }
+
     statusEl.innerHTML = `<p class="status-info">Uploading "${file.name}"...</p>`;
 
     try {
@@ -191,7 +197,10 @@ window.Pages.Library = {
       setTimeout(() => { statusEl.innerHTML = ''; }, 2500);
     } catch (error) {
       console.error('PDF upload failed:', error);
-      statusEl.innerHTML = `<p class="status-error">Upload failed. Please try again.</p>`;
+      const message = error.status === 413
+        ? `"${file.name}" is too large. PDFs must be 25 MB or smaller.`
+        : 'Upload failed. Please try again.';
+      statusEl.innerHTML = `<p class="status-error">${message}</p>`;
     }
   },
 

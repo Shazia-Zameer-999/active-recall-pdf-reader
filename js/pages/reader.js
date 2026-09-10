@@ -9,6 +9,8 @@ window.Pages.Reader = {
     pdfName: '',
     renderToken: 0,
     pageVisitId: 0,
+    currentRenderTask: null,
+
   },
 
   render() {
@@ -131,9 +133,10 @@ window.Pages.Reader = {
       } catch (error) {
         console.error('Study session start failed:', error);
       }
-      window.addEventListener('resize', () => {
+        this.state.handleResize = () => {
         if (this.state.fitWidth) this.fitToWidth();
-      }, { passive: true });
+      };
+      window.addEventListener('resize', this.state.handleResize, { passive: true });
       await this.fitToWidth();
     } catch (error) {
       console.error('Failed to load PDF:', error);
@@ -145,24 +148,38 @@ window.Pages.Reader = {
     Realtime.studyStopped();
     Realtime.leaveGroup();
     localStorage.removeItem('impactx_active_group_id');
+    if (this.state.handleResize) {
+      window.removeEventListener('resize', this.state.handleResize);
+      this.state.handleResize = null;
+    }
   },
 
   async fitToWidth() {
     if (!this.state.pdfDoc) return;
     const page = await this.state.pdfDoc.getPage(this.state.currentPage);
-    const containerWidth = Math.max(
-      1,
-      document.getElementById('reader-canvas-container').clientWidth - 24
-    );
+    const container = document.getElementById('reader-canvas-container');
+    if (!container) return; // navigated away from Reader while this was awaiting
+    const containerWidth = Math.max(1, container.clientWidth - 24);
     const unscaledViewport = page.getViewport({ scale: 1 });
     this.state.scale = containerWidth / unscaledViewport.width;
     this.state.fitWidth = true;
-    document.getElementById('zoom-level').textContent = `${Math.round(this.state.scale * 100)}%`;
+    const zoomLevelEl = document.getElementById('zoom-level');
+    if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(this.state.scale * 100)}%`;
     await this.renderPage(this.state.currentPage);
   },
 
-  async renderPage(pageNumber, visitId = this.state.pageVisitId) {
+    async renderPage(pageNumber, visitId = this.state.pageVisitId) {
     const renderToken = ++this.state.renderToken;
+
+    if (this.state.currentRenderTask) {
+      try {
+        this.state.currentRenderTask.cancel();
+      } catch (error) {
+        // Previous task may already be done/cancelled - safe to ignore.
+      }
+      this.state.currentRenderTask = null;
+    }
+
     const canvasContainer = document.getElementById('reader-canvas-container');
     const page = await this.state.pdfDoc.getPage(pageNumber);
     if (renderToken !== this.state.renderToken) return;
@@ -193,9 +210,23 @@ window.Pages.Reader = {
     overlayCanvas.style.width = `${viewport.width}px`;
     overlayCanvas.style.height = `${viewport.height}px`;
 
-    const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+        const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
-    await page.render({ canvasContext: context, viewport, transform }).promise;
+    const renderTask = page.render({ canvasContext: context, viewport, transform });
+    this.state.currentRenderTask = renderTask;
+
+    try {
+      await renderTask.promise;
+    } catch (error) {
+      if (error && error.name === 'RenderingCancelledException') return; // superseded by a newer render, not a real error
+      console.error('Failed to render page', pageNumber, error);
+      if (renderToken === this.state.renderToken) {
+        canvasContainer.innerHTML = `<div class="empty-state"><p>Couldn't render this page. Try again.</p></div>`;
+      }
+      return;
+    } finally {
+      if (this.state.currentRenderTask === renderTask) this.state.currentRenderTask = null;
+    }
     if (renderToken !== this.state.renderToken) return;
 
     Storage.updateReadingProgress(this.state.pdfId, pageNumber, this.state.totalPages);
@@ -207,29 +238,39 @@ window.Pages.Reader = {
     Annotations.updateLayerInteractivity();
     Annotations.renderAll();
 
-    const textContent = await page.getTextContent();
-    let pageText = textContent.items.map((item) => item.str).join(' ');
+     const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item) => item.str).join(' ');
 
-    if (pageText.trim().length < 40) {
-      const cached = Storage.getCachedOcrText(this.state.pdfId, pageNumber);
-      if (cached) {
-        pageText = cached;
-      } else {
-        this.showOcrIndicator(true);
-        try {
-          pageText = await OCR.recognizeCanvas(canvas);
-          Storage.setCachedOcrText(this.state.pdfId, pageNumber, pageText);
-        } catch (error) {
-          console.error('OCR failed for page', pageNumber, error);
-          pageText = '';
-        } finally {
-          this.showOcrIndicator(false);
-        }
-      }
+    if (pageText.trim().length >= 40) {
+      ActiveRecall.onPageRead(pageText, pageNumber, visitId);
+      return;
     }
 
-    if (renderToken !== this.state.renderToken) return;
-    ActiveRecall.onPageRead(pageText, pageNumber, visitId);
+    const cached = Storage.getCachedOcrText(this.state.pdfId, pageNumber);
+    if (cached) {
+      ActiveRecall.onPageRead(cached, pageNumber, visitId);
+      return;
+    }
+
+    // Low/no extractable text: OCR runs in the background so it never blocks
+    // page turns, zoom, or resize. It reads the canvas synchronously below
+    // (before returning), so it's safe even though the canvas may be replaced
+    // by a later renderPage() call before OCR finishes.
+    this.runBackgroundOcr(canvas, pageNumber, visitId, renderToken);
+  },
+
+  async runBackgroundOcr(canvas, pageNumber, visitId, renderToken) {
+    this.showOcrIndicator(true);
+    try {
+      const pageText = await OCR.recognizeCanvas(canvas);
+      Storage.setCachedOcrText(this.state.pdfId, pageNumber, pageText);
+      if (renderToken !== this.state.renderToken) return; // user moved on before OCR finished
+      ActiveRecall.onPageRead(pageText, pageNumber, visitId);
+    } catch (error) {
+      console.error('OCR failed for page', pageNumber, error);
+    } finally {
+      this.showOcrIndicator(false);
+    }
   },
 
   showOcrIndicator(show) {

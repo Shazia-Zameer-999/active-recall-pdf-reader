@@ -1093,8 +1093,8 @@ def start_study_session(user):
     if csrf_error:
         return csrf_error
     payload = parse_json()
-    pdf_id = str(payload.get("pdfId", "")).strip() or None
-    group_id = str(payload.get("groupId", "")).strip() or None
+    pdf_id = str(payload.get("pdfId") or "").strip() or None
+    group_id = str(payload.get("groupId") or "").strip() or None
     database = get_db()
     if group_id:
         if not ObjectId.is_valid(group_id) or not group_member(
