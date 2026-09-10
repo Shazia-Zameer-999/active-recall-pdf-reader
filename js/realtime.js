@@ -3,9 +3,43 @@ const Realtime = {
     currentGroupId: null,
     activeStudy: null,
     listeners: new Map(),
+    _connecting: false,
+    _scriptPromise: null,
 
-    connect() {
-        if (this.socket || typeof io === 'undefined' || !Auth.user) return;
+    // Lazily injects the Socket.IO client from the CDN the first time it's needed, and only once.
+    // Same-origin behavior is untouched — this only controls WHEN the script loads,
+    // not what URL the socket connects to (that's still io({...}) below, no URL argument).
+    loadSocketIoScript() {
+        if (typeof io !== 'undefined') return Promise.resolve();
+        if (this._scriptPromise) return this._scriptPromise;
+
+        this._scriptPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+            script.onload = () => resolve();
+            script.onerror = () => {
+                this._scriptPromise = null;
+                reject(new Error('Failed to load Socket.IO from CDN'));
+            };
+            document.head.appendChild(script);
+        });
+
+        return this._scriptPromise;
+    },
+
+    async connect() {
+        if (this.socket || this._connecting || !Auth.user) return;
+        this._connecting = true;
+        try {
+            await this.loadSocketIoScript();
+        } catch (error) {
+            console.error('Realtime connection failed to load:', error.message);
+            return;
+        } finally {
+            this._connecting = false;
+        }
+        if (this.socket || typeof io === 'undefined') return;
+
         this.socket = io({ transports: ['websocket', 'polling'] });
         this.socket.on('connect', () => {
             Notifications.refresh();
@@ -13,6 +47,11 @@ const Realtime = {
             if (this.activeStudy) this.socket.emit('study_started', this.activeStudy);
         });
         this.socket.on('connect_error', (error) => console.error('Realtime connection failed:', error.message));
+
+        // Re-bind any listeners that were registered via on() before the socket existed yet
+        for (const [, listener] of this.listeners) {
+            this.socket.on(listener.event, listener.callback);
+        }
     },
 
     disconnect() {
@@ -24,10 +63,12 @@ const Realtime = {
     },
 
     on(event, callback, scope = 'global') {
-        if (!this.socket) this.connect();
-        if (!this.socket) return;
-        this.socket.on(event, callback);
         this.listeners.set(`${scope}:${event}:${callback}`, { event, callback, scope });
+        if (this.socket) {
+            this.socket.on(event, callback);
+        } else {
+            this.connect();
+        }
     },
 
     offScope(scope) {
@@ -39,10 +80,12 @@ const Realtime = {
     },
 
     joinGroup(groupId) {
-        this.connect();
-        if (!this.socket) return;
         this.currentGroupId = groupId;
-        this.socket.emit('join_group', { groupId });
+        if (this.socket) {
+            this.socket.emit('join_group', { groupId });
+        } else {
+            this.connect();
+        }
     },
 
     leaveGroup() {

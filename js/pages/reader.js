@@ -93,14 +93,23 @@ window.Pages.Reader = {
       canvasContainer.innerHTML = `<div class="empty-state"><p>PDF not found. It may have been deleted.</p></div>`;
       return;
     }
-
-    this.state.pdfName = record.name;
+// khk
+        this.state.pdfName = record.name;
 
     const arrayBuffer = await record.file.arrayBuffer();
 
     try {
+      await loadPdfJs();
+    } catch (error) {
+      console.error('Failed to load PDF engine:', error);
+      canvasContainer.innerHTML = `<div class="empty-state"><p>Couldn't load the PDF engine. Check your connection and try again.</p></div>`;
+      return;
+    }
+
+    try {
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       this.state.pdfDoc = await loadingTask.promise;
+      // jjk
       this.state.totalPages = this.state.pdfDoc.numPages;
 
       const requestedPage = parseInt(Router.getQueryParam('page'), 10);
