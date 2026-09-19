@@ -1,4 +1,3 @@
 const CONFIG = {
-  GEMINI_API_KEY: '',
-  GEMINI_MODEL: 'gemini-flash-latest',
+  GEMINI_MODEL: 'gemini-3.6-flash',
 };

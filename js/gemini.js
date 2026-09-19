@@ -1,5 +1,5 @@
 const Gemini = {
-  FUNCTION_URL: '/.netlify/functions/gemini',
+  FUNCTION_URL: '/api/gemini',
 
   async generateText(prompt, retriesLeft = 2) {
     try {
@@ -25,12 +25,15 @@ const Gemini = {
         const isRateLimit = message === 'RATE_LIMIT';
 
         if (isRateLimit && retriesLeft > 0) {
-          console.warn(`Gemini rate-limited, retrying in 5s... (${retriesLeft} retries left)`);
-          await new Promise((resolve) => setTimeout(resolve, 5000));
+          const waitTime = (3 - retriesLeft) * 3000 + 3000;
+          console.warn(`Gemini temporarily unavailable, retrying in ${waitTime / 1000}s... (${retriesLeft} retries left)`);
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
           return this.generateText(prompt, retriesLeft - 1);
         }
 
-        throw new Error(isRateLimit ? 'RATE_LIMIT' : message);
+        throw new Error(isRateLimit
+          ? 'Gemini is temporarily busy. Please try again in a moment.'
+          : message);
       }
 
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;

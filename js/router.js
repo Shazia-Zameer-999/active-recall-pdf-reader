@@ -9,9 +9,12 @@ const routes = {
   '/analytics': window.Pages.Analytics,
   '/settings': window.Pages.Settings,
   '/profile': window.Pages.Profile,
+  '/friends': window.Pages.Friends,
+  '/groups': window.Pages.Groups,
 };
 
 const Router = {
+  activePage: null,
   init() {
     window.addEventListener('hashchange', () => this.render());
     this.render();
@@ -20,6 +23,7 @@ const Router = {
   // Returns just the path part, e.g. "#/reader?id=abc123" -> "/reader"
   getCurrentPath() {
     const hash = window.location.hash.replace('#', '');
+    if (hash && !hash.startsWith('/')) return '/';
     const path = hash.split('?')[0];
     return path || '/';
   },
@@ -34,8 +38,21 @@ const Router = {
 
   render() {
     const path = this.getCurrentPath();
+    if (this.activePage && this.activePage !== routes[path] && typeof this.activePage.cleanup === 'function') {
+      this.activePage.cleanup();
+    }
+    if (this.getCurrentPath() !== '/reader' && StudySessions.activeId) {
+      StudySessions.finish();
+      Realtime.studyStopped();
+    }
     const page = routes[path];
+    this.activePage = page;
     const app = document.getElementById('app');
+
+    if (path !== '/' && !Auth.user) {
+      window.location.hash = '/';
+      return;
+    }
 
     if (!page) {
       app.innerHTML = `<div class="page-error"><h2>404 — Page not found</h2></div>`;

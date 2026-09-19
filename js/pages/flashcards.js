@@ -141,8 +141,19 @@ window.Pages.Flashcards = {
       this.refreshDueBadge();
     } catch (error) {
       console.error('Flashcard generation failed:', error);
-      statusEl.innerHTML = `<p class="status-error">Generation failed. Please try again.</p>`;
+      const message = error?.message || 'Unknown error';
+      statusEl.innerHTML = `<p class="status-error">Generation failed: ${this.escapeHtml(message)}</p>`;
     }
+  },
+
+  escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;',
+    }[character]));
   },
 
   showManualForm() {
@@ -204,8 +215,8 @@ window.Pages.Flashcards = {
     content.innerHTML = `
       <div class="flashcards-grid">
         ${cards
-          .map(
-            (card) => `
+        .map(
+          (card) => `
           <div class="flashcard-item">
             <button class="flashcard-favorite ${card.favorite ? 'favorited' : ''}" data-id="${card.id}">
               ${card.favorite ? '⭐' : '☆'}
@@ -216,8 +227,8 @@ window.Pages.Flashcards = {
             <button class="flashcard-delete" data-id="${card.id}">🗑️</button>
           </div>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     `;
 
@@ -305,11 +316,10 @@ window.Pages.Flashcards = {
           </div>
         </div>
 
-        ${
-          !isFlipped
-            ? `<p class="study-hint">Click the card to reveal the answer</p>`
-            : isReviewMode
-            ? `
+        ${!isFlipped
+        ? `<p class="study-hint">Click the card to reveal the answer</p>`
+        : isReviewMode
+          ? `
               <p class="study-hint">How well did you know this?</p>
               <div class="rating-buttons">
                 <button class="rating-btn rating-again" data-rating="0">Again</button>
@@ -318,8 +328,8 @@ window.Pages.Flashcards = {
                 <button class="rating-btn rating-easy" data-rating="3">Easy</button>
               </div>
             `
-            : `<p class="study-hint">Click the card to flip back</p>`
-        }
+          : `<p class="study-hint">Click the card to flip back</p>`
+      }
 
         <div class="study-controls">
           ${!isReviewMode ? `<button id="study-prev-btn" class="btn btn-secondary-sm" ${studyIndex === 0 ? 'disabled' : ''}>◀ Previous</button>` : ''}

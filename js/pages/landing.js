@@ -1,23 +1,76 @@
 window.Pages.Landing = {
   render() {
+    const primaryAction = Auth.user ? '#/dashboard' : '#auth-form';
+    const primaryActionLabel = Auth.user ? 'Open Dashboard' : 'Get Started';
+
     return `
       <div class="landing">
         <header class="landing-nav">
-          <div class="brand">
-            <span class="brand-icon">🧠</span>
-            <span class="brand-name">Recall</span>
+          <div class=" sidebar-brand">
+                        <span class="brand-icon">
+        <img
+            id="brand-logo"
+            src="assets/${Theme.current() === 'dark' ? 'main2.svg' : 'main.svg'}"
+            alt="ImpactX Logo"
+        >
+    </span>
+
+    <span class="brand-name">
+        ImpactX
+    </span>
           </div>
-          <a href="#/dashboard" class="btn btn-primary">Get Started</a>
+          <button id="landing-theme-toggle" class="icon-btn" type="button" aria-label="Switch theme">
+            <span id="landing-theme-icon">${Theme.current() === 'dark' ? '☀️' : '🌙'}</span>
+          </button>
+          <a href="${primaryAction}" class="btn btn-primary">${primaryActionLabel}</a>
         </header>
 
         <section class="landing-hero">
-          <h1>Read less. Remember more.</h1>
+          <span class="hero-kicker">ACTIVE RECALL / AI PDF READER</span>
+          <h1>Turn reading into remembering.</h1>
           <p class="hero-subtitle">
-            An AI-powered PDF reader that quizzes you as you read, so what you
-            study actually sticks.
+            Read smarter with an AI study companion that turns your PDFs into
+            questions, flashcards, and lasting memory.
           </p>
-          <a href="#/dashboard" class="btn btn-primary btn-lg">Start Studying</a>
+          <a href="${primaryAction}" class="btn btn-primary btn-lg">${Auth.user ? 'Continue Studying' : 'Start Studying'
+      }</a>
         </section>
+
+        ${Auth.user ? `
+          <section class="auth-card auth-signed-in">
+            <h2>Welcome back, ${this.escapeHtml(Auth.user.name)}.</h2>
+            <p>Your study data is synced to your account.</p>
+            <a href="#/dashboard" class="btn btn-primary">Open Dashboard</a>
+          </section>
+        ` : `
+          <section class="auth-card" id="auth-form">
+            <h2 id="auth-title">Sign in to Recall</h2>
+            <p id="auth-subtitle">Your PDFs, notes, and progress will be saved securely.</p>
+            <form id="auth-form-element">
+              <input id="auth-name" class="manual-form-input auth-register-field" type="text" placeholder="Your name" autocomplete="name" hidden />
+              <input
+  id="auth-username"
+  class="manual-form-input auth-register-field"
+  type="text"
+  placeholder="Username"
+  autocomplete="username"
+  hidden
+/>
+              <input
+    id="auth-identifier"
+    class="manual-form-input"
+    type="text"
+    placeholder="Email or Username"
+    autocomplete="username"
+    required
+/>
+              <input id="auth-password" class="manual-form-input" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" minlength="8" required />
+              <button id="auth-submit" class="btn btn-primary" type="submit">Sign in</button>
+              <p id="auth-status" class="auth-status" role="status"></p>
+            </form>
+            <button id="auth-toggle" class="btn btn-secondary-sm" type="button">Create an account</button>
+          </section>
+        `}
 
         <section class="landing-features">
           <div class="feature-card">
@@ -38,5 +91,103 @@ window.Pages.Landing = {
         </section>
       </div>
     `;
+  },
+
+  afterRender() {
+    const themeBtn = document.getElementById("landing-theme-toggle");
+
+if (themeBtn) {
+    const logo = document.getElementById("brand-logo");
+    const icon = document.getElementById("landing-theme-icon");
+
+    themeBtn.addEventListener("click", () => {
+        Theme.toggle();
+
+        const isDark = Theme.current() === "dark";
+
+        icon.textContent = isDark ? "☀️" : "🌙";
+        logo.src = isDark
+            ? "assets/main2.svg"
+            : "assets/main.svg";
+    });
+}
+
+    const form = document.getElementById('auth-form-element');
+    if (!form) return;
+
+    let registerMode = false;
+    const nameInput = document.getElementById('auth-name');
+    const title = document.getElementById('auth-title');
+    const subtitle = document.getElementById('auth-subtitle');
+    const submit = document.getElementById('auth-submit');
+    const toggle = document.getElementById('auth-toggle');
+    const status = document.getElementById('auth-status');
+
+    toggle.addEventListener('click', () => {
+      registerMode = !registerMode;
+      const identifierInput =
+document.getElementById("auth-identifier");
+
+identifierInput.placeholder =
+registerMode
+? "Email address"
+: "Email or Username";
+identifierInput.autocomplete =
+    registerMode ? "email" : "username";
+      nameInput.hidden = !registerMode;
+      const usernameInput =
+      document.getElementById("auth-username");
+
+      usernameInput.hidden = !registerMode;
+      usernameInput.required = registerMode;
+      nameInput.required = registerMode;
+      title.textContent = registerMode ? 'Create your Recall account' : 'Sign in to Recall';
+      subtitle.textContent = registerMode
+        ? 'Keep your study data synced across sessions.'
+        : 'Your PDFs, notes, and progress are saved securely.';
+      submit.textContent = registerMode ? 'Create account' : 'Sign in';
+      toggle.textContent = registerMode ? 'I already have an account' : 'Create an account';
+      document.getElementById('auth-password').autocomplete = registerMode ? 'new-password' : 'current-password';
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      status.textContent = 'Please wait...';
+      submit.disabled = true;
+      try {
+        const usernameInput =
+document.getElementById("auth-username");
+const identifierInput =
+document.getElementById("auth-identifier");
+
+const value = identifierInput.value.trim();
+        const password = document.getElementById('auth-password').value;
+        if (registerMode) {
+    await Auth.register(
+        nameInput.value.trim(),
+        usernameInput.value.trim(),
+        value,
+        password
+    );
+} else {
+    await Auth.login(value, password);
+
+}
+        Router.navigate('/dashboard');
+      } catch (error) {
+        status.textContent = error.message;
+        submit.disabled = false;
+      }
+    });
+  },
+
+  escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;',
+    }[character]));
   },
 };

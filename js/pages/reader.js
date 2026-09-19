@@ -4,11 +4,18 @@ window.Pages.Reader = {
     currentPage: 1,
     totalPages: 0,
     scale: 1.2,
+    fitWidth: true,
     pdfId: null,
     pdfName: '',
+    renderToken: 0,
+    pageVisitId: 0,
+    currentRenderTask: null,
+
   },
 
   render() {
+    document.body.classList.remove('reader-fullscreen');
+
     return `
       <div class="reader-page">
         <div class="reader-toolbar">
@@ -29,6 +36,7 @@ window.Pages.Reader = {
           <span class="toolbar-divider"></span>
 
           <button id="bookmark-page-btn" class="btn btn-secondary-sm" title="Bookmark this page">🔖 Bookmark</button>
+          <button id="full-view-btn" class="btn btn-secondary-sm" title="Open reader in full view" aria-pressed="false">⛶ Full View</button>
         </div>
 
         <div class="annotation-toolbar">
@@ -87,24 +95,48 @@ window.Pages.Reader = {
       canvasContainer.innerHTML = `<div class="empty-state"><p>PDF not found. It may have been deleted.</p></div>`;
       return;
     }
-
-    this.state.pdfName = record.name;
+// khk
+        this.state.pdfName = record.name;
 
     const arrayBuffer = await record.file.arrayBuffer();
 
     try {
+      await loadPdfJs();
+    } catch (error) {
+      console.error('Failed to load PDF engine:', error);
+      canvasContainer.innerHTML = `<div class="empty-state"><p>Couldn't load the PDF engine. Check your connection and try again.</p></div>`;
+      return;
+    }
+
+    try {
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       this.state.pdfDoc = await loadingTask.promise;
+      // jjk
       this.state.totalPages = this.state.pdfDoc.numPages;
 
       const requestedPage = parseInt(Router.getQueryParam('page'), 10);
       this.state.currentPage = requestedPage && requestedPage <= this.state.totalPages ? requestedPage : 1;
+      this.state.pageVisitId = 1;
 
       document.getElementById('total-pages').textContent = this.state.totalPages;
       document.getElementById('page-input').max = this.state.totalPages;
 
       this.attachToolbarListeners();
       this.attachAnnotationToolbarListeners();
+      this.attachTouchNavigation();
+      this.attachFullViewListener();
+      const groupId = Router.getQueryParam('groupId') || localStorage.getItem('impactx_active_group_id');
+      if (groupId) Realtime.joinGroup(groupId);
+      try {
+        await StudySessions.start(this.state.pdfId, this.state.currentPage);
+        Realtime.studyStarted(this.state.pdfId, this.state.currentPage, this.state.pdfName);
+      } catch (error) {
+        console.error('Study session start failed:', error);
+      }
+        this.state.handleResize = () => {
+        if (this.state.fitWidth) this.fitToWidth();
+      };
+      window.addEventListener('resize', this.state.handleResize, { passive: true });
       await this.fitToWidth();
     } catch (error) {
       console.error('Failed to load PDF:', error);
@@ -112,18 +144,45 @@ window.Pages.Reader = {
     }
   },
 
+  cleanup() {
+    Realtime.studyStopped();
+    Realtime.leaveGroup();
+    localStorage.removeItem('impactx_active_group_id');
+    if (this.state.handleResize) {
+      window.removeEventListener('resize', this.state.handleResize);
+      this.state.handleResize = null;
+    }
+  },
+
   async fitToWidth() {
+    if (!this.state.pdfDoc) return;
     const page = await this.state.pdfDoc.getPage(this.state.currentPage);
-    const containerWidth = document.getElementById('reader-canvas-container').clientWidth - 40;
+    const container = document.getElementById('reader-canvas-container');
+    if (!container) return; // navigated away from Reader while this was awaiting
+    const containerWidth = Math.max(1, container.clientWidth - 24);
     const unscaledViewport = page.getViewport({ scale: 1 });
     this.state.scale = containerWidth / unscaledViewport.width;
-    document.getElementById('zoom-level').textContent = `${Math.round(this.state.scale * 100)}%`;
+    this.state.fitWidth = true;
+    const zoomLevelEl = document.getElementById('zoom-level');
+    if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(this.state.scale * 100)}%`;
     await this.renderPage(this.state.currentPage);
   },
 
-  async renderPage(pageNumber) {
+    async renderPage(pageNumber, visitId = this.state.pageVisitId) {
+    const renderToken = ++this.state.renderToken;
+
+    if (this.state.currentRenderTask) {
+      try {
+        this.state.currentRenderTask.cancel();
+      } catch (error) {
+        // Previous task may already be done/cancelled - safe to ignore.
+      }
+      this.state.currentRenderTask = null;
+    }
+
     const canvasContainer = document.getElementById('reader-canvas-container');
     const page = await this.state.pdfDoc.getPage(pageNumber);
+    if (renderToken !== this.state.renderToken) return;
     const viewport = page.getViewport({ scale: this.state.scale });
 
     canvasContainer.innerHTML = `
@@ -151,9 +210,24 @@ window.Pages.Reader = {
     overlayCanvas.style.width = `${viewport.width}px`;
     overlayCanvas.style.height = `${viewport.height}px`;
 
-    const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+        const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
-    await page.render({ canvasContext: context, viewport, transform }).promise;
+    const renderTask = page.render({ canvasContext: context, viewport, transform });
+    this.state.currentRenderTask = renderTask;
+
+    try {
+      await renderTask.promise;
+    } catch (error) {
+      if (error && error.name === 'RenderingCancelledException') return; // superseded by a newer render, not a real error
+      console.error('Failed to render page', pageNumber, error);
+      if (renderToken === this.state.renderToken) {
+        canvasContainer.innerHTML = `<div class="empty-state"><p>Couldn't render this page. Try again.</p></div>`;
+      }
+      return;
+    } finally {
+      if (this.state.currentRenderTask === renderTask) this.state.currentRenderTask = null;
+    }
+    if (renderToken !== this.state.renderToken) return;
 
     Storage.updateReadingProgress(this.state.pdfId, pageNumber, this.state.totalPages);
 
@@ -164,28 +238,39 @@ window.Pages.Reader = {
     Annotations.updateLayerInteractivity();
     Annotations.renderAll();
 
-    const textContent = await page.getTextContent();
-    let pageText = textContent.items.map((item) => item.str).join(' ');
+     const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item) => item.str).join(' ');
 
-    if (pageText.trim().length < 40) {
-      const cached = Storage.getCachedOcrText(this.state.pdfId, pageNumber);
-      if (cached) {
-        pageText = cached;
-      } else {
-        this.showOcrIndicator(true);
-        try {
-          pageText = await OCR.recognizeCanvas(canvas);
-          Storage.setCachedOcrText(this.state.pdfId, pageNumber, pageText);
-        } catch (error) {
-          console.error('OCR failed for page', pageNumber, error);
-          pageText = '';
-        } finally {
-          this.showOcrIndicator(false);
-        }
-      }
+    if (pageText.trim().length >= 40) {
+      ActiveRecall.onPageRead(pageText, pageNumber, visitId);
+      return;
     }
 
-    ActiveRecall.onPageRead(pageText, pageNumber);
+    const cached = Storage.getCachedOcrText(this.state.pdfId, pageNumber);
+    if (cached) {
+      ActiveRecall.onPageRead(cached, pageNumber, visitId);
+      return;
+    }
+
+    // Low/no extractable text: OCR runs in the background so it never blocks
+    // page turns, zoom, or resize. It reads the canvas synchronously below
+    // (before returning), so it's safe even though the canvas may be replaced
+    // by a later renderPage() call before OCR finishes.
+    this.runBackgroundOcr(canvas, pageNumber, visitId, renderToken);
+  },
+
+  async runBackgroundOcr(canvas, pageNumber, visitId, renderToken) {
+    this.showOcrIndicator(true);
+    try {
+      const pageText = await OCR.recognizeCanvas(canvas);
+      Storage.setCachedOcrText(this.state.pdfId, pageNumber, pageText);
+      if (renderToken !== this.state.renderToken) return; // user moved on before OCR finished
+      ActiveRecall.onPageRead(pageText, pageNumber, visitId);
+    } catch (error) {
+      console.error('OCR failed for page', pageNumber, error);
+    } finally {
+      this.showOcrIndicator(false);
+    }
   },
 
   showOcrIndicator(show) {
@@ -245,12 +330,14 @@ window.Pages.Reader = {
 
     zoomInBtn.addEventListener('click', () => {
       this.state.scale = Math.min(this.state.scale + 0.2, 3);
+      this.state.fitWidth = false;
       zoomLevelEl.textContent = `${Math.round(this.state.scale * 100)}%`;
       this.renderPage(this.state.currentPage);
     });
 
     zoomOutBtn.addEventListener('click', () => {
       this.state.scale = Math.max(this.state.scale - 0.2, 0.4);
+      this.state.fitWidth = false;
       zoomLevelEl.textContent = `${Math.round(this.state.scale * 100)}%`;
       this.renderPage(this.state.currentPage);
     });
@@ -258,6 +345,100 @@ window.Pages.Reader = {
     fitWidthBtn.addEventListener('click', () => this.fitToWidth());
 
     document.getElementById('bookmark-page-btn').addEventListener('click', () => this.showBookmarkPopup());
+  },
+
+  attachTouchNavigation() {
+    const container = document.getElementById('reader-canvas-container');
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+
+    container.addEventListener('touchstart', (event) => {
+      if (Annotations.state.tool !== 'none' || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startTime = Date.now();
+    }, { passive: true });
+
+    container.addEventListener('touchend', (event) => {
+      if (Annotations.state.tool !== 'none' || !startTime || event.changedTouches.length !== 1) return;
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const elapsed = Date.now() - startTime;
+      startTime = 0;
+
+      if (elapsed > 650 || Math.abs(deltaX) < 56 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+      this.goToPage(this.state.currentPage + (deltaX < 0 ? 1 : -1));
+    }, { passive: true });
+  },
+
+  attachFullViewListener() {
+    const button = document.getElementById('full-view-btn');
+    if (!button) return;
+
+    const updateButton = () => {
+      const isFullView = document.body.classList.contains('reader-fullscreen')
+        || Boolean(document.fullscreenElement)
+        || Boolean(document.webkitFullscreenElement);
+      button.textContent = isFullView ? '⛶ Exit Full View' : '⛶ Full View';
+      button.title = isFullView ? 'Exit full view' : 'Open reader in full view';
+      button.setAttribute('aria-pressed', String(isFullView));
+    };
+
+    const toggle = async () => {
+      const readerPage = document.querySelector('.reader-page');
+      const isFullView = document.body.classList.contains('reader-fullscreen')
+        || Boolean(document.fullscreenElement)
+        || Boolean(document.webkitFullscreenElement);
+
+      if (isFullView) {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+        document.body.classList.remove('reader-fullscreen');
+      } else {
+        document.body.classList.add('reader-fullscreen');
+        const requestFullscreen = readerPage?.requestFullscreen || readerPage?.webkitRequestFullscreen;
+        if (requestFullscreen) {
+          try {
+            await requestFullscreen.call(readerPage);
+          } catch (error) {
+            console.warn('Native fullscreen unavailable; using reader full view.', error);
+          }
+        }
+      }
+
+      updateButton();
+      if (this.state.fitWidth) requestAnimationFrame(() => this.fitToWidth());
+    };
+
+    button.addEventListener('click', toggle);
+    this.state.exitFullView = () => {
+      if (!document.body.classList.contains('reader-fullscreen')
+        && !document.fullscreenElement
+        && !document.webkitFullscreenElement) return;
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+      if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+      document.body.classList.remove('reader-fullscreen');
+      updateButton();
+      if (this.state.fitWidth) requestAnimationFrame(() => this.fitToWidth());
+    };
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        document.body.classList.remove('reader-fullscreen');
+      }
+      updateButton();
+      if (this.state.fitWidth) requestAnimationFrame(() => this.fitToWidth());
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.state.exitFullView();
+    }, { once: false });
   },
 
   showBookmarkPopup() {
@@ -334,8 +515,13 @@ window.Pages.Reader = {
 
   goToPage(pageNum) {
     if (pageNum < 1 || pageNum > this.state.totalPages) return;
+    if (pageNum === this.state.currentPage) return;
     this.state.currentPage = pageNum;
-    document.getElementById('page-input').value = pageNum;
+    this.state.pageVisitId += 1;
+    StudySessions.update(pageNum).catch((error) => console.error('Study session update failed:', error));
+    Realtime.studyUpdated(pageNum);
+    const pageInput = document.getElementById('page-input');
+    if (pageInput) pageInput.value = pageNum;
     this.renderPage(pageNum);
   },
 };

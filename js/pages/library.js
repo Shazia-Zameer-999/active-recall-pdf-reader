@@ -1,4 +1,6 @@
 window.Pages.Library = {
+  state: { query: '' },
+
   // Formats a Date/timestamp into something readable, e.g. "Jul 15, 2026"
   formatDate(timestamp) {
     return new Date(timestamp).toLocaleDateString('en-US', {
@@ -25,9 +27,12 @@ window.Pages.Library = {
 
      <div id="upload-status"></div>
 
-      <div class="library-view-toggle">
+      <div class="library-toolbar">
+        <input id="library-search" class="notes-search-input" type="search" placeholder="Search your PDFs..." aria-label="Search your PDFs" />
+        <div class="library-view-toggle">
         <button id="view-pdfs-btn" class="btn btn-secondary-sm active-view">📚 My PDFs</button>
         <button id="view-bookmarks-btn" class="btn btn-secondary-sm">📑 Bookmarks</button>
+        </div>
       </div>
 
       <div id="library-grid" class="library-grid">
@@ -79,6 +84,11 @@ window.Pages.Library = {
       document.getElementById('view-bookmarks-btn').classList.add('active-view');
       document.getElementById('view-pdfs-btn').classList.remove('active-view');
       this.renderBookmarksView();
+    });
+
+    document.getElementById('library-search').addEventListener('input', (event) => {
+      this.state.query = event.target.value.trim().toLowerCase();
+      this.renderGrid();
     });
 
     // --- Load and render the existing PDF grid ---
@@ -163,6 +173,12 @@ window.Pages.Library = {
       return;
     }
 
+    const MAX_PDF_BYTES = 25 * 1024 * 1024; // matches MAX_CONTENT_LENGTH in app.py
+    if (file.size > MAX_PDF_BYTES) {
+      statusEl.innerHTML = `<p class="status-error">"${file.name}" is too large. PDFs must be 25 MB or smaller.</p>`;
+      return;
+    }
+
     statusEl.innerHTML = `<p class="status-info">Uploading "${file.name}"...</p>`;
 
     try {
@@ -181,13 +197,17 @@ window.Pages.Library = {
       setTimeout(() => { statusEl.innerHTML = ''; }, 2500);
     } catch (error) {
       console.error('PDF upload failed:', error);
-      statusEl.innerHTML = `<p class="status-error">Upload failed. Please try again.</p>`;
+      const message = error.status === 413
+        ? `"${file.name}" is too large. PDFs must be 25 MB or smaller.`
+        : 'Upload failed. Please try again.';
+      statusEl.innerHTML = `<p class="status-error">${message}</p>`;
     }
   },
 
   async renderGrid() {
     const grid = document.getElementById('library-grid');
     const pdfs = await DB.getAllPDFs();
+    const filteredPdfs = pdfs.filter((pdf) => pdf.name.toLowerCase().includes(this.state.query));
 
     if (pdfs.length === 0) {
       grid.innerHTML = `
@@ -199,10 +219,15 @@ window.Pages.Library = {
       return;
     }
 
-    // Most recently uploaded first
-    pdfs.sort((a, b) => b.uploadedAt - a.uploadedAt);
+    if (filteredPdfs.length === 0) {
+      grid.innerHTML = `<div class="empty-state"><span class="empty-icon">⌕</span><p>No PDFs match “${this.escapeHtml(this.state.query)}”.</p></div>`;
+      return;
+    }
 
-    grid.innerHTML = pdfs
+    // Most recently uploaded first
+    filteredPdfs.sort((a, b) => b.uploadedAt - a.uploadedAt);
+
+    grid.innerHTML = filteredPdfs
       .map(
         (pdf) => `
         <div class="pdf-card" data-id="${pdf.id}">
@@ -240,5 +265,15 @@ window.Pages.Library = {
         await this.renderGrid(); // refresh the grid after deletion
       });
     });
+  },
+
+  escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[character]));
   },
 };

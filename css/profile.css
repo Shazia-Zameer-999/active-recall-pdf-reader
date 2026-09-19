@@ -1,3 +1,16 @@
+.profile-security-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.profile-delete-account { margin-top: var(--space-lg); }
+
+@media (max-width: 700px) {
+  .profile-security-form { grid-template-columns: 1fr; }
+}
+
 .profile-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
