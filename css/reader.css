@@ -1,6 +1,11 @@
 .reader-page {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+.reader-body {
+  min-height: 0;
 }
 
 .reader-toolbar {
@@ -67,14 +72,192 @@
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   align-items: flex-start;
   min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-y;
+}
+
+@media (max-width: 700px) {
+  .reader-toolbar,
+  .annotation-toolbar {
+    padding: 8px;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .toolbar-divider {
+    display: none;
+  }
+  .reader-toolbar .btn-secondary-sm {
+    flex: 1 1 auto;
+  }
+  .reader-canvas-container {
+    padding: 12px;
+  }
+  .reader-body {
+    flex-direction: column;
+    overflow: visible;
+  }
+  .annotations-panel {
+    width: 100%;
+    max-height: 220px;
+  }
+  .annotation-toolbar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+  }
+  .annotation-toolbar .toolbar-divider {
+    display: block;
+    flex: 0 0 1px;
+  }
+  .ann-tool-btn,
+  .annotation-toolbar .color-swatches {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .reader-toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .reader-toolbar .page-indicator {
+    justify-content: center;
+  }
+  .reader-toolbar #fit-width-btn,
+  .reader-toolbar #bookmark-page-btn {
+    grid-column: span 2;
+  }
+  .reader-toolbar #zoom-level {
+    min-width: 0;
+  }
+  .reader-canvas-container {
+    padding: 8px;
+    border-radius: var(--radius-sm);
+  }
+  .pdf-page-wrapper {
+    touch-action: pan-y;
+  }
 }
 
 #pdf-canvas {
   box-shadow: var(--shadow);
   background: white;
+}
+
+body.reader-fullscreen {
+  overflow: hidden;
+}
+
+body.reader-fullscreen .sidebar,
+body.reader-fullscreen .topbar {
+  display: none;
+}
+
+body.reader-fullscreen .main-column,
+body.reader-fullscreen .page-content {
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+body.reader-fullscreen .page-content {
+  max-width: none;
+  padding: max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  overflow: hidden;
+}
+
+body.reader-fullscreen .reader-page {
+  height: 100%;
+}
+
+body.reader-fullscreen .reader-toolbar,
+body.reader-fullscreen .annotation-toolbar {
+  flex-shrink: 0;
+}
+
+body.reader-fullscreen .reader-body {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+body.reader-fullscreen .reader-canvas-container {
+  overflow: auto;
+  min-height: 0;
+}
+
+body.reader-fullscreen .annotations-panel {
+  display: none;
+}
+
+.reader-page:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  padding: max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.reader-page:fullscreen .reader-body {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.reader-page:fullscreen .reader-canvas-container {
+  min-height: 0;
+  overflow: auto;
+}
+
+.reader-page:fullscreen .annotations-panel {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  body.reader-fullscreen .reader-body {
+    overflow: hidden;
+  }
+
+  body.reader-fullscreen .annotations-panel {
+    flex-shrink: 0;
+  }
+
+  body.reader-fullscreen .reader-toolbar,
+  .reader-page:fullscreen .reader-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.reader-fullscreen .reader-toolbar > *,
+  .reader-page:fullscreen .reader-toolbar > * {
+    flex: 0 0 auto;
+  }
+
+  body.reader-fullscreen .annotation-toolbar,
+  .reader-page:fullscreen .annotation-toolbar {
+    max-height: 52px;
+    margin-bottom: 8px;
+  }
+
+  body.reader-fullscreen .reader-body,
+  .reader-page:fullscreen .reader-body {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  body.reader-fullscreen .reader-canvas-container,
+  .reader-page:fullscreen .reader-canvas-container {
+    min-height: 0;
+  }
 }
 
 /* --- Recallo: Font & Theme 'Aa' Menu --- */
@@ -211,4 +394,4 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-}
+}

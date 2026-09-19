@@ -1,68 +1,45 @@
 const DB = {
-  _db: null,
-  DB_NAME: 'recall_app_db',
-  DB_VERSION: 1,
-  STORE_NAME: 'pdfs',
-
-  init() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-          const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
-          store.createIndex('uploadedAt', 'uploadedAt', { unique: false });
-        }
-      };
-
-      request.onsuccess = (event) => {
-        this._db = event.target.result;
-        resolve(this._db);
-      };
-
-      request.onerror = (event) => {
-        console.error('IndexedDB failed to open:', event.target.error);
-        reject(event.target.error);
-      };
-    });
+  async init() {
+    return true;
   },
 
-  savePDF({ id, name, file, totalPages = null }) {
-    return new Promise((resolve, reject) => {
-      const tx = this._db.transaction(this.STORE_NAME, 'readwrite');
-      const store = tx.objectStore(this.STORE_NAME);
-      const record = { id, name, file, totalPages, uploadedAt: Date.now() };
-      const request = store.put(record);
-      request.onsuccess = () => resolve(record);
-      request.onerror = () => reject(request.error);
+  async savePDF({ id, name, file, totalPages = null }) {
+    const form = new FormData();
+    form.append('id', id);
+    form.append('name', name);
+    if (totalPages !== null) form.append('totalPages', totalPages);
+    form.append('file', file, name);
+
+    const data = await Auth.request('/api/pdfs', {
+      method: 'POST',
+      body: form,
     });
+    return { ...data, file };
   },
 
-  getPDF(id) {
-    return new Promise((resolve, reject) => {
-      const tx = this._db.transaction(this.STORE_NAME, 'readonly');
-      const request = tx.objectStore(this.STORE_NAME).get(id);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
-    });
+  async getPDF(id) {
+    const response = await fetch(`/api/pdfs/${encodeURIComponent(id)}`);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return {
+      id,
+      name: response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || 'document.pdf',
+      file: blob,
+    };
   },
 
-  getAllPDFs() {
-    return new Promise((resolve, reject) => {
-      const tx = this._db.transaction(this.STORE_NAME, 'readonly');
-      const request = tx.objectStore(this.STORE_NAME).getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
+  async getAllPDFs() {
+    const data = await Auth.request('/api/pdfs');
+    return data.pdfs || [];
   },
 
-  deletePDF(id) {
-    return new Promise((resolve, reject) => {
-      const tx = this._db.transaction(this.STORE_NAME, 'readwrite');
-      const request = tx.objectStore(this.STORE_NAME).delete(id);
-      request.onsuccess = () => resolve(true);
-      request.onerror = () => reject(request.error);
-    });
+  async deletePDF(id) {
+    await Auth.request(`/api/pdfs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return true;
+  },
+
+  async deleteAllPDFs() {
+    await Auth.request('/api/pdfs', { method: 'DELETE' });
+    return true;
   },
 };

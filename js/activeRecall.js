@@ -6,6 +6,9 @@ const ActiveRecall = {
   isPromptOpen: false,
   isGatedLocked: false,
   lastGatedPage: null,
+  recallFrequencyPages: null,
+  promptToken: 0,
+  lastVisitId: null,
 
   init(pdfId) {
     this.currentPdfId = pdfId;
@@ -13,16 +16,42 @@ const ActiveRecall = {
     this.isPromptOpen = false;
     this.isGatedLocked = false;
     this.lastGatedPage = null;
+    this.recallFrequencyPages = null;
+    this.lastVisitId = null;
+    this.promptToken += 1;
     if (window.RecallEngine) {
       window.RecallEngine.init(pdfId);
     }
   },
 
-  async onPageRead(pageText, pageNumber) {
+  syncSettings(settings) {
+    const frequency = Number(settings.recallFrequencyPages) || 5;
+    const frequencyChanged = this.recallFrequencyPages !== null && this.recallFrequencyPages !== frequency;
+    if (frequencyChanged) {
+      this.pagesSinceLastCheck = 0;
+      this.promptToken += 1;
+      if (this.isPromptOpen) this.closeModal();
+    }
+    this.recallFrequencyPages = frequency;
+
+    if (!settings.recallEnabled) {
+      this.pagesSinceLastCheck = 0;
+      this.promptToken += 1;
+      if (this.isPromptOpen) this.closeModal();
+    }
+  },
+
+  // Call this every time a page finishes rendering in the Reader
+  async onPageRead(pageText, pageNumber, visitId) {
     const settings = Storage.getSettings();
+    this.syncSettings(settings);
+
     if (!settings.recallEnabled) return;
     if (this.isPromptOpen) return;
     if (!pageText || pageText.trim().length < 30) return;
+
+    if (visitId !== undefined && this.lastVisitId === visitId) return;
+    if (visitId !== undefined) this.lastVisitId = visitId;
 
     // Check frequency setting
     let targetFreq = 5;
@@ -44,6 +73,7 @@ const ActiveRecall = {
     this.isPromptOpen = true;
     this.isGatedLocked = true;
     this.lastGatedPage = pageNumber;
+    const promptToken = ++this.promptToken;
     this.renderModal('loading');
 
     try {
@@ -63,8 +93,17 @@ const ActiveRecall = {
         };
       }
 
+      if (promptToken !== this.promptToken) {
+        this.closeModal();
+        return;
+      }
+
       this.renderModal('question', { checkpoint, pageText, pageNumber, retryEasier });
     } catch (error) {
+      if (promptToken !== this.promptToken) {
+        this.closeModal();
+        return;
+      }
       console.error('Active Recall generation failed:', error);
       const friendlyMessage =
         error.message === 'RATE_LIMIT'
@@ -296,6 +335,7 @@ const ActiveRecall = {
     if (overlay) overlay.remove();
     this.isPromptOpen = false;
     this.isGatedLocked = false;
+    this.promptToken += 1;
   },
 };
 

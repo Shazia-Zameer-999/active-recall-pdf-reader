@@ -1,5 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+
 :root {
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-main: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Space Grotesk", var(--font-main);
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
@@ -13,29 +16,32 @@
 }
 
 body[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f6f8;
+  color-scheme: light;
+  --bg-primary: #fffdf8;
+  --bg-secondary: #f4f0e8;
   --bg-card: #ffffff;
-  --text-primary: #1a1a1a;
-  --text-secondary: #6b7280;
-  --border-color: #e5e7eb;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
+  --text-primary: #182321;
+  --text-secondary: #66716d;
+  --border-color: #e5dfd4;
+  --accent: #e35d45;
+  --accent-hover: #c94a35;
   --success: #16a34a;
   --danger: #dc2626;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow: 0 16px 40px rgba(39, 34, 25, 0.09);
 }
 
 body[data-theme="dark"] {
-  --bg-primary: #121212;
-  --bg-secondary: #1c1c1e;
-  --bg-card: #1e1e20;
-  --text-primary: #f2f2f2;
-  --text-secondary: #a1a1aa;
-  --border-color: #2c2c2e;
-  --accent: #818cf8;
-  --accent-hover: #6366f1;
-  --success: #4ade80;
-  --danger: #f87171;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+  --bg-primary: #08090a;
+  --bg-secondary: #0f1011;
+  --bg-card: #151719;
+  --text-primary: #f7f8f8;
+  --text-secondary: #8a8f98;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --accent: #a6a8ff;
+  --accent-hover: #c0c2ff;
+  --success: #65d6a0;
+  --danger: #ff8f87;
+  --shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset, 0 12px 32px rgba(0, 0, 0, 0.35);
 }

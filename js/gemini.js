@@ -1,5 +1,5 @@
 const Gemini = {
-  FUNCTION_URLS: ['/.netlify/functions/gemini', '/api/gemini'],
+  FUNCTION_URLS: ['/api/gemini', '/.netlify/functions/gemini'],
 
   async generateText(prompt, retriesLeft = 2) {
     let lastError = null;
@@ -27,7 +27,7 @@ const Gemini = {
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, model: CONFIG.GEMINI_MODEL }),
+          body: JSON.stringify({ prompt, model: typeof CONFIG !== 'undefined' ? CONFIG.GEMINI_MODEL : 'gemini-1.5-flash' }),
         });
 
         if (response.status === 404) {
@@ -46,10 +46,12 @@ const Gemini = {
           const message = data?.error || `Gemini API error: ${response.status}`;
           const isRateLimit = message === 'RATE_LIMIT';
           if (isRateLimit && retriesLeft > 0) {
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            const waitTime = (3 - retriesLeft) * 3000 + 3000;
+            console.warn(`Gemini temporarily unavailable, retrying in ${waitTime / 1000}s...`);
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
             return this.generateText(prompt, retriesLeft - 1);
           }
-          throw new Error(isRateLimit ? 'RATE_LIMIT' : message);
+          throw new Error(isRateLimit ? 'Gemini is temporarily busy. Please try again in a moment.' : message);
         }
 
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -60,15 +62,6 @@ const Gemini = {
     }
 
     throw lastError || new Error('Failed to communicate with AI endpoint.');
-  },
-
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error('Gemini returned an empty response');
-      return text;
-    } catch (error) {
-      console.error('Gemini generateText failed:', error);
-      throw error;
-    }
   },
 
   async generateJSON(prompt) {
