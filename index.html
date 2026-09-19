@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Recall — PDF Study Reader</title>
+  <title>RecalIo — The Active Recall Engine</title>
 
   <link rel="stylesheet" href="css/variables.css" />
   <link rel="stylesheet" href="css/base.css" />
@@ -13,6 +13,18 @@
   <link rel="stylesheet" href="css/library.css" />
   <link rel="stylesheet" href="css/reader.css" />
   <link rel="stylesheet" href="css/active-recall.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/flashcards.css" />
+  <link rel="stylesheet" href="css/quiz.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/analytics.css" />
+  <link rel="stylesheet" href="css/profile.css" />
+  <link rel="stylesheet" href="css/timer.css" />
+  <link rel="stylesheet" href="css/notes.css" />
+  <link rel="stylesheet" href="css/annotations.css" />
+  <link rel="stylesheet" href="css/group.css" />
+  <link rel="stylesheet" href="css/travel.css" />
+  <link rel="stylesheet" href="css/review.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
   <script>
@@ -36,35 +48,28 @@
   <script src="js/spacedRepetition.js"></script>
   <script src="js/gemini.js"></script>
   <script src="js/theme.js"></script>
-<script src="js/ocr.js"></script>
-<script src="js/activeRecall.js"></script>
-<script src="js/annotations.js"></script>
-<script src="js/timer.js"></script>
-<link rel="stylesheet" href="css/active-recall.css" />
-<link rel="stylesheet" href="css/settings.css" />
-<link rel="stylesheet" href="css/flashcards.css" />
-<link rel="stylesheet" href="css/quiz.css" />
-<link rel="stylesheet" href="css/quiz.css" />
-<link rel="stylesheet" href="css/dashboard.css" />
-<link rel="stylesheet" href="css/analytics.css" />
-<link rel="stylesheet" href="css/profile.css" />
-<link rel="stylesheet" href="css/quiz.css">
-<link rel="stylesheet" href="css/timer.css" />
-<link rel="stylesheet" href="css/notes.css" />
-<link rel="stylesheet" href="css/annotations.css" />
+  <script src="js/ocr.js"></script>
+  <script src="js/contentSource.js"></script>
+  <script src="js/p2pMesh.js"></script>
+  <script src="js/gamification.js"></script>
+  <script src="js/recallEngine.js"></script>
+  <script src="js/groupRoom.js"></script>
+  <script src="js/travelSync.js"></script>
+  <script src="js/activeRecall.js"></script>
+  <script src="js/annotations.js"></script>
+  <script src="js/timer.js"></script>
 
-
-<script>window.Pages = window.Pages || {};</script>
-
-  <!-- Create the shared Pages namespace ONCE, before any page files load.
-       Each page file below just adds to this object — it does NOT redeclare it. -->
+  <!-- Create the shared Pages namespace ONCE, before any page files load -->
   <script>window.Pages = window.Pages || {};</script>
 
-  <!-- 3. Page modules — order among these doesn't matter, they all attach to window.Pages -->
+  <!-- 3. Page modules — attach to window.Pages -->
   <script src="js/pages/landing.js"></script>
   <script src="js/pages/dashboard.js"></script>
   <script src="js/pages/library.js"></script>
   <script src="js/pages/reader.js"></script>
+  <script src="js/pages/group.js"></script>
+  <script src="js/pages/travel.js"></script>
+  <script src="js/pages/review.js"></script>
   <script src="js/pages/notes.js"></script>
   <script src="js/pages/flashcards.js"></script>
   <script src="js/pages/quiz.js"></script>

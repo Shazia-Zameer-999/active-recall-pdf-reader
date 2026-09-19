@@ -1,37 +1,66 @@
 const Gemini = {
-  FUNCTION_URL: '/.netlify/functions/gemini',
+  FUNCTION_URLS: ['/.netlify/functions/gemini', '/api/gemini'],
 
   async generateText(prompt, retriesLeft = 2) {
-    try {
-      const response = await fetch(this.FUNCTION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, model: CONFIG.GEMINI_MODEL }),
-      });
+    let lastError = null;
 
-      const rawBody = await response.text();
-
-      let data;
+    // Check if direct API key is configured
+    if (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
       try {
-        data = rawBody ? JSON.parse(rawBody) : null;
-      } catch {
-        throw new Error(
-          `Gemini function returned a non-JSON response (status ${response.status}): ${rawBody.slice(0, 200)}`
-        );
+        const model = CONFIG.GEMINI_MODEL || 'gemini-1.5-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        });
+        const data = await res.json();
+        const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (txt) return txt;
+      } catch (e) {
+        console.warn('Direct Gemini API call failed, falling back to function proxy:', e);
       }
+    }
 
-      if (!response.ok) {
-        const message = data?.error || `Gemini API error: ${response.status}`;
-        const isRateLimit = message === 'RATE_LIMIT';
+    for (const endpoint of this.FUNCTION_URLS) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, model: CONFIG.GEMINI_MODEL }),
+        });
 
-        if (isRateLimit && retriesLeft > 0) {
-          console.warn(`Gemini rate-limited, retrying in 5s... (${retriesLeft} retries left)`);
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-          return this.generateText(prompt, retriesLeft - 1);
+        if (response.status === 404) {
+          continue; // try next endpoint
         }
 
-        throw new Error(isRateLimit ? 'RATE_LIMIT' : message);
+        const rawBody = await response.text();
+        let data;
+        try {
+          data = rawBody ? JSON.parse(rawBody) : null;
+        } catch {
+          continue;
+        }
+
+        if (!response.ok) {
+          const message = data?.error || `Gemini API error: ${response.status}`;
+          const isRateLimit = message === 'RATE_LIMIT';
+          if (isRateLimit && retriesLeft > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            return this.generateText(prompt, retriesLeft - 1);
+          }
+          throw new Error(isRateLimit ? 'RATE_LIMIT' : message);
+        }
+
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      } catch (err) {
+        lastError = err;
       }
+    }
+
+    throw lastError || new Error('Failed to communicate with AI endpoint.');
+  },
 
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error('Gemini returned an empty response');

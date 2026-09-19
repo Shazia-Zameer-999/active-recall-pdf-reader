@@ -1,0 +1,63 @@
+/* css/review.css — Dedicated Spaced Repetition Review Hub for Recallo */
+
+.review-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.review-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+.review-card-stage {
+  perspective: 1000px;
+  min-height: 280px;
+  margin: var(--space-md) auto;
+  max-width: 580px;
+  width: 100%;
+}
+
+.sm2-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 280px;
+  transition: all var(--transition-normal);
+}
+
+.sm2-ratings-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: var(--space-lg);
+}
+
+.sm2-rate-btn {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.15s ease;
+}
+
+.sm2-rate-btn:hover {
+  transform: translateY(-2px);
+}
+
+.rate-again { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.rate-hard { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.rate-good { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.rate-easy { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
