@@ -28,25 +28,27 @@ const Realtime = {
     },
 
     async connect() {
-        if (this.socket || this._connecting || !Auth.user) return;
+        if (this.socket || this._connecting || !Auth.user || Auth.user.isGuest || Auth.user.isLocal) return;
         this._connecting = true;
         try {
             await this.loadSocketIoScript();
         } catch (error) {
-            console.error('Realtime connection failed to load:', error.message);
             return;
         } finally {
             this._connecting = false;
         }
         if (this.socket || typeof io === 'undefined') return;
 
-        this.socket = io({ transports: ['websocket', 'polling'] });
+        this.socket = io({ transports: ['websocket', 'polling'], timeout: 4000, reconnectionAttempts: 2 });
         this.socket.on('connect', () => {
-            Notifications.refresh();
+            if (typeof Notifications !== 'undefined') Notifications.refresh();
             if (this.currentGroupId) this.socket.emit('join_group', { groupId: this.currentGroupId });
             if (this.activeStudy) this.socket.emit('study_started', this.activeStudy);
         });
-        this.socket.on('connect_error', (error) => console.error('Realtime connection failed:', error.message));
+        this.socket.on('connect_error', () => {
+            // Silently fall back to P2P BroadcastChannel / Local mesh
+            this.disconnect();
+        });
 
         // Re-bind any listeners that were registered via on() before the socket existed yet
         for (const [, listener] of this.listeners) {
