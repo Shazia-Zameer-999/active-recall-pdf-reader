@@ -94,22 +94,126 @@ Respond with ONLY valid JSON in this exact structure (no code blocks, no explana
         difficulty: retryEasier ? 'easy' : 'standard',
       };
     } catch (err) {
-      console.warn('RecallEngine Gemini JSON generation failed, falling back to flashcard extraction:', err);
-      // Fallback to flashcard format
-      const cards = await Gemini.generateFlashcards(pageText, 1);
-      const card = cards[0] || { question: 'What was the main topic on this page?', answer: 'Check source text.' };
+      console.warn('RecallEngine Gemini JSON generation failed, falling back to offline heuristic checkpoint:', err);
+      return this.generateHeuristicCheckpoint(pageText, pageNumber, retryEasier);
+    }
+  },
+
+  // Fully offline, zero-dependency heuristic checkpoint generator (Train Mode / Offline Gating)
+  generateHeuristicCheckpoint(pageText, pageNumber, retryEasier = false) {
+    const cleanText = (pageText || '').replace(/\s+/g, ' ').trim();
+    const rawSentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+    const sentences = rawSentences
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 25 && s.length <= 300);
+
+    // Form a crisp 2-line summary from top conceptual sentences
+    const keywordSentences = sentences.filter((s) =>
+      /\b(is|are|defined|means|function|principle|law|process|structure|method|theorem|key|important|primary|role)\b/i.test(s)
+    );
+    const summarySentences = (keywordSentences.length >= 2 ? keywordSentences : sentences).slice(0, 2);
+    const summary =
+      summarySentences.join(' ').slice(0, 220).trim() ||
+      'Review the core ideas, definitions, and relationships outlined on this page.';
+
+    // Look for a clean definition or statement
+    const definitionRegex =
+      /^(?:The\s+|A\s+|An\s+)?([A-Z][a-zA-Z0-9\s'-]{2,35}?)\s+(?:is|are|refers to|is defined as|represents|means)\s+([^.]+)/i;
+    let chosenSentence = sentences.find((s) => definitionRegex.test(s));
+    let match = chosenSentence ? chosenSentence.match(definitionRegex) : null;
+
+    if (match) {
+      const keyConcept = match[1].trim();
+      const rawDef = match[2].trim();
+      const correctAnswer = rawDef.charAt(0).toUpperCase() + rawDef.slice(1);
+
+      // Collect distractors
+      const distractors = sentences
+        .filter((s) => s !== chosenSentence)
+        .map((s) => {
+          const m = s.match(definitionRegex);
+          return m ? m[2].trim().charAt(0).toUpperCase() + m[2].trim().slice(1) : s.slice(0, 70);
+        })
+        .filter((d) => d && d !== correctAnswer)
+        .slice(0, 3);
+
+      while (distractors.length < 3) {
+        distractors.push(
+          distractors.length === 0
+            ? 'Acts as a secondary, non-essential variable'
+            : distractors.length === 1
+            ? 'Inversely related to the primary system mechanism'
+            : 'Unrelated to the principle described on this page'
+        );
+      }
+
+      const options = [correctAnswer, ...distractors.slice(0, 3)];
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [options[i], options[j]] = [options[j], options[i]];
+      }
+
+      const question = retryEasier
+        ? `What is the fundamental role or definition of "${keyConcept}"?`
+        : `According to Page ${pageNumber}, which of the following correctly describes "${keyConcept}"?`;
+
       return {
-        summary: 'Review the text you just read and recall the central definition.',
-        question: card.question,
-        options: null, // text area mode
-        correctIndex: -1,
-        answer: card.answer,
-        keyConcept: 'General Recall',
+        summary,
+        question,
+        options,
+        correctIndex: options.indexOf(correctAnswer),
+        answer: chosenSentence,
+        keyConcept,
         pageNumber,
         pageText,
-        difficulty: 'standard',
+        difficulty: retryEasier ? 'easy' : 'standard',
       };
     }
+
+    // Secondary heuristic: fill in the blank
+    const candidateSentence = sentences.find((s) => s.length > 50 && s.length < 180) || sentences[0];
+    if (candidateSentence) {
+      const words = candidateSentence.split(/\s+/).filter((w) => w.length > 5 && /^[a-zA-Z]+$/.test(w));
+      if (words.length > 0) {
+        const targetWord = words[0];
+        const blanked = candidateSentence.replace(new RegExp(`\\b${targetWord}\\b`, 'i'), '________');
+        const keyConcept = targetWord.charAt(0).toUpperCase() + targetWord.slice(1);
+
+        const options = [targetWord, words[1] || 'alternative', 'hypothesis', 'constant'];
+        const uniqueOpts = Array.from(new Set(options));
+        while (uniqueOpts.length < 4) uniqueOpts.push(`factor_${uniqueOpts.length}`);
+
+        for (let i = uniqueOpts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [uniqueOpts[i], uniqueOpts[j]] = [uniqueOpts[j], uniqueOpts[i]];
+        }
+
+        return {
+          summary,
+          question: `Complete the key statement from Page ${pageNumber}: "${blanked.slice(0, 160)}..."`,
+          options: uniqueOpts,
+          correctIndex: uniqueOpts.indexOf(targetWord),
+          answer: `The correct term is "${targetWord}" as stated: "${candidateSentence}"`,
+          keyConcept,
+          pageNumber,
+          pageText,
+          difficulty: retryEasier ? 'easy' : 'standard',
+        };
+      }
+    }
+
+    // Tertiary heuristic: text recall prompt
+    return {
+      summary,
+      question: `In 1-2 concise sentences, recall the main concept or formula explained on Page ${pageNumber}.`,
+      options: null,
+      correctIndex: -1,
+      answer: `Key insight from Page ${pageNumber}: "${cleanText.slice(0, 200)}..."`,
+      keyConcept: 'Active Retrieval',
+      pageNumber,
+      pageText,
+      difficulty: retryEasier ? 'easy' : 'standard',
+    };
   },
 };
 

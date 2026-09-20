@@ -4,11 +4,16 @@ const Gemini = {
   async generateText(prompt, retriesLeft = 2) {
     let lastError = null;
 
-    // Check if direct API key is configured
-    if (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
+    // Check if direct API key is configured (CONFIG or localStorage)
+    const apiKey = (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('gemini_api_key') : null);
+
+    if (apiKey) {
       try {
-        const model = CONFIG.GEMINI_MODEL || 'gemini-1.5-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+        const model = (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_MODEL && CONFIG.GEMINI_MODEL.startsWith('gemini'))
+          ? CONFIG.GEMINI_MODEL
+          : 'gemini-1.5-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -17,6 +22,9 @@ const Gemini = {
         const data = await res.json();
         const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (txt) return txt;
+        if (data?.error) {
+          console.warn('Direct Gemini API call returned error:', data.error);
+        }
       } catch (e) {
         console.warn('Direct Gemini API call failed, falling back to function proxy:', e);
       }
@@ -30,7 +38,8 @@ const Gemini = {
           body: JSON.stringify({ prompt, model: typeof CONFIG !== 'undefined' ? CONFIG.GEMINI_MODEL : 'gemini-1.5-flash' }),
         });
 
-        if (response.status === 404) {
+        // Skip endpoint if missing (404) or static server doesn't allow POST (405)
+        if (response.status === 404 || response.status === 405) {
           continue; // try next endpoint
         }
 
@@ -94,7 +103,12 @@ Text:
 
 Return a JSON array in this exact shape:
 [{ "question": "...", "answer": "..." }]`;
-    return this.generateJSON(prompt);
+    try {
+      return await this.generateJSON(prompt);
+    } catch (err) {
+      console.warn('Gemini generateFlashcards failed, falling back to offline extraction:', err.message || err);
+      return this.generateOfflineFlashcards(text, count);
+    }
   },
 
   async generateMCQs(text, count = 5) {
@@ -106,6 +120,150 @@ Text:
 
 Return a JSON array in this exact shape:
 [{ "question": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0, "explanation": "..." }]`;
-    return this.generateJSON(prompt);
+    try {
+      return await this.generateJSON(prompt);
+    } catch (err) {
+      console.warn('Gemini generateMCQs failed, falling back to offline extraction:', err.message || err);
+      return this.generateOfflineMCQs(text, count);
+    }
+  },
+
+  generateOfflineFlashcards(text, count = 8) {
+    const cleanText = (text || '').replace(/\s+/g, ' ').trim();
+    const rawSentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+    const sentences = rawSentences
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 25 && s.length <= 300);
+
+    const cards = [];
+    const definitionRegex = /^(?:The\s+|A\s+|An\s+)?([A-Z][a-zA-Z0-9\s'-]{2,35}?)\s+(?:is|are|refers to|is defined as|represents|means)\s+([^.]+)/i;
+
+    for (const sentence of sentences) {
+      if (cards.length >= count) break;
+      const match = sentence.match(definitionRegex);
+      if (match) {
+        const concept = match[1].trim();
+        const definition = match[2].trim();
+        if (concept.length > 2 && definition.length > 8) {
+          cards.push({
+            question: `What is ${concept}?`,
+            answer: sentence,
+          });
+        }
+      }
+    }
+
+    for (const sentence of sentences) {
+      if (cards.length >= count) break;
+      if (!cards.some((c) => c.answer === sentence)) {
+        const words = sentence.split(/\s+/);
+        const keyWord = words.find((w) => w.length > 5 && /^[A-Z]/.test(w)) || words[0];
+        cards.push({
+          question: `Explain the concept of ${keyWord} discussed on this page.`,
+          answer: sentence,
+        });
+      }
+    }
+
+    if (cards.length === 0) {
+      cards.push({
+        question: 'What is the core subject discussed in this excerpt?',
+        answer: cleanText.slice(0, 200) || 'Review the source text for key concepts.',
+      });
+    }
+
+    return cards;
+  },
+
+  generateOfflineMCQs(text, count = 5) {
+    const cleanText = (text || '').replace(/\s+/g, ' ').trim();
+    const rawSentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+    const sentences = rawSentences
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 25 && s.length <= 300);
+
+    const questions = [];
+    const definitionRegex = /^(?:The\s+|A\s+|An\s+)?([A-Z][a-zA-Z0-9\s'-]{2,35}?)\s+(?:is|are|refers to|is defined as|represents|means)\s+([^.]+)/i;
+
+    for (const sentence of sentences) {
+      if (questions.length >= count) break;
+      const match = sentence.match(definitionRegex);
+      if (match) {
+        const concept = match[1].trim();
+        const correctAnswer = match[2].trim().charAt(0).toUpperCase() + match[2].trim().slice(1);
+
+        const distractors = sentences
+          .filter((s) => s !== sentence)
+          .map((s) => {
+            const m = s.match(definitionRegex);
+            return m ? m[2].trim().charAt(0).toUpperCase() + m[2].trim().slice(1) : s.slice(0, 70);
+          })
+          .filter((d) => d && d !== correctAnswer)
+          .slice(0, 3);
+
+        while (distractors.length < 3) {
+          distractors.push(
+            distractors.length === 0
+              ? 'An unrelated peripheral mechanism'
+              : distractors.length === 1
+              ? 'Inverts the primary principle described'
+              : 'Has no direct relationship to this function'
+          );
+        }
+
+        const options = [correctAnswer, ...distractors.slice(0, 3)];
+        for (let i = options.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [options[i], options[j]] = [options[j], options[i]];
+        }
+
+        questions.push({
+          question: `Which of the following best defines or describes "${concept}"?`,
+          options,
+          correctIndex: options.indexOf(correctAnswer),
+          explanation: sentence,
+        });
+      }
+    }
+
+    for (const sentence of sentences) {
+      if (questions.length >= count) break;
+      const words = sentence.split(/\s+/).filter((w) => w.length > 5 && /^[a-zA-Z]+$/.test(w));
+      if (words.length > 0) {
+        const targetWord = words[0];
+        const blanked = sentence.replace(new RegExp(`\\b${targetWord}\\b`, 'i'), '________');
+        const options = [targetWord, words[1] || 'alternative', 'parameter', 'constant'];
+        const uniqueOpts = Array.from(new Set(options));
+        while (uniqueOpts.length < 4) uniqueOpts.push(`factor_${uniqueOpts.length}`);
+
+        for (let i = uniqueOpts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [uniqueOpts[i], uniqueOpts[j]] = [uniqueOpts[j], uniqueOpts[i]];
+        }
+
+        questions.push({
+          question: `Complete the key statement from the text: "${blanked.slice(0, 150)}..."`,
+          options: uniqueOpts,
+          correctIndex: uniqueOpts.indexOf(targetWord),
+          explanation: sentence,
+        });
+      }
+    }
+
+    if (questions.length === 0) {
+      questions.push({
+        question: 'What is the primary theme highlighted in this reading material?',
+        options: [
+          'The core foundational concepts and principles',
+          'Historical background with no modern relevance',
+          'Unverified conjectures and hypotheses',
+          'Opposing viewpoints without evidence',
+        ],
+        correctIndex: 0,
+        explanation: 'The excerpt highlights foundational principles and key definitions.',
+      });
+    }
+
+    return questions;
   },
 };

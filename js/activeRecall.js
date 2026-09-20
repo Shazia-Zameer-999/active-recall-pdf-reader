@@ -81,11 +81,10 @@ const ActiveRecall = {
       if (window.RecallEngine) {
         checkpoint = await window.RecallEngine.generateCheckpoint(pageText, pageNumber, retryEasier);
       } else {
-        const cards = await Gemini.generateFlashcards(pageText, 1);
         checkpoint = {
           summary: 'Review the text you just read and retrieve the core concept.',
-          question: cards[0]?.question || 'What was the primary concept on this page?',
-          answer: cards[0]?.answer || 'Check source text.',
+          question: 'What was the primary concept or formula on this page?',
+          answer: 'Check the source text on Page ' + pageNumber,
           options: null,
           correctIndex: -1,
           pageNumber,
@@ -104,12 +103,26 @@ const ActiveRecall = {
         this.closeModal();
         return;
       }
-      console.error('Active Recall generation failed:', error);
-      const friendlyMessage =
-        error.message === 'RATE_LIMIT'
-          ? 'AI rate limit reached. Pausing checkpoint briefly.'
-          : 'Something went wrong generating this checkpoint. You may continue.';
-      this.renderModal('error', { message: friendlyMessage });
+      console.warn('Active Recall generation fallback activated:', error);
+      try {
+        const fallbackCheckpoint = window.RecallEngine
+          ? window.RecallEngine.generateHeuristicCheckpoint(pageText, pageNumber, retryEasier)
+          : {
+              summary: 'Review the text you just read and recall the central definition.',
+              question: `What was the primary concept or takeaway on Page ${pageNumber}?`,
+              options: null,
+              correctIndex: -1,
+              answer: 'Review the text on Page ' + pageNumber,
+              keyConcept: 'Active Recall',
+              pageNumber,
+              pageText,
+              difficulty: retryEasier ? 'easy' : 'standard',
+            };
+        this.renderModal('question', { checkpoint: fallbackCheckpoint, pageText, pageNumber, retryEasier });
+      } catch (fallbackError) {
+        console.error('All active recall generation attempts failed:', fallbackError);
+        this.renderModal('error', { message: 'Something went wrong generating this checkpoint. You may continue.' });
+      }
     }
   },
 
