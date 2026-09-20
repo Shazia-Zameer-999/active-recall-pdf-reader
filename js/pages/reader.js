@@ -158,7 +158,11 @@ window.Pages.Reader = {
     const arrayBuffer = await record.file.arrayBuffer();
 
     try {
-      await loadPdfJs();
+      if (typeof loadPdfJs === 'function') {
+        await loadPdfJs();
+      } else if (typeof pdfjsLib === 'undefined') {
+        throw new Error('PDF.js engine is not loaded');
+      }
     } catch (error) {
       console.error('Failed to load PDF engine:', error);
       canvasContainer.innerHTML = `<div class="empty-state"><p>Couldn't load the PDF engine. Check your connection and try again.</p></div>`;

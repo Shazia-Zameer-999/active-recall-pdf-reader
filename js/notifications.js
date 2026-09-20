@@ -3,7 +3,7 @@ const Notifications = {
     initialized: false,
 
     async init() {
-        if (!Auth.user) return;
+        if (!Auth.user || Auth.user.isGuest || Auth.user.isLocal) return;
         if (this.initialized) return;
         this.initialized = true;
         Realtime.on('notification_created', (notification) => {
@@ -14,13 +14,13 @@ const Notifications = {
     },
 
     async refresh() {
-        if (!Auth.user) return;
+        if (!Auth.user || Auth.user.isGuest || Auth.user.isLocal) return;
         try {
             const data = await Auth.request('/api/notifications');
             this.items = data.notifications || [];
             this.render();
         } catch (error) {
-            console.error('Notifications loading failed:', error);
+            // Silently ignore when backend is offline
         }
     },
 
