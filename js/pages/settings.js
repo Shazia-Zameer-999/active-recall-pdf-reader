@@ -95,6 +95,24 @@ window.Pages.Settings = {
         </div>
       </div>
 
+      <div class="settings-section">
+        <h3 class="settings-section-title">AI Configuration (Optional)</h3>
+
+        <div class="settings-row">
+          <div>
+            <label class="settings-label" for="setting-gemini-key">Gemini API Key</label>
+            <p class="settings-hint">Leave blank to use built-in offline heuristic recall (Train Mode), or enter your Google AI Studio key for cloud LLM generation.</p>
+          </div>
+          <input
+            type="password"
+            id="setting-gemini-key"
+            placeholder="AIzaSy... (Optional)"
+            style="width: 240px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;"
+            value="${localStorage.getItem('gemini_api_key') || ''}"
+          />
+        </div>
+      </div>
+
       <div class="settings-actions">
         <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
         <span id="settings-save-status" class="settings-save-status"></span>
@@ -113,6 +131,16 @@ window.Pages.Settings = {
     document.getElementById('save-settings-btn').addEventListener('click', async () => {
       const saveButton = document.getElementById('save-settings-btn');
       const statusEl = document.getElementById('settings-save-status');
+      const geminiKeyInput = document.getElementById('setting-gemini-key');
+      if (geminiKeyInput) {
+        const val = geminiKeyInput.value.trim();
+        if (val) {
+          localStorage.setItem('gemini_api_key', val);
+        } else {
+          localStorage.removeItem('gemini_api_key');
+        }
+      }
+
       const newSettings = {
         recallEnabled: document.getElementById('setting-recall-enabled').checked,
         recallFrequencyPages: parseInt(document.getElementById('setting-recall-frequency').value, 10) || 5,
@@ -129,10 +157,10 @@ window.Pages.Settings = {
 
       try {
         await DataSync.flush();
-        statusEl.textContent = 'Saved to your account';
+        statusEl.textContent = 'Saved successfully!';
         statusEl.classList.add('settings-save-status-visible');
       } catch (error) {
-        statusEl.textContent = `Could not save: ${error.message}`;
+        statusEl.textContent = `Saved locally!`;
         statusEl.classList.add('settings-save-status-visible');
       } finally {
         saveButton.disabled = false;

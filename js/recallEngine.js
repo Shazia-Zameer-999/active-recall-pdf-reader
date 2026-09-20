@@ -132,7 +132,9 @@ Respond with ONLY valid JSON in this exact structure (no code blocks, no explana
         .filter((s) => s !== chosenSentence)
         .map((s) => {
           const m = s.match(definitionRegex);
-          return m ? m[2].trim().charAt(0).toUpperCase() + m[2].trim().slice(1) : s.slice(0, 70);
+          if (m) return m[2].trim().charAt(0).toUpperCase() + m[2].trim().slice(1);
+          const trimmed = s.slice(0, 85).replace(/\s+\S*$/, '').trim();
+          return trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1) : s.slice(0, 40);
         })
         .filter((d) => d && d !== correctAnswer)
         .slice(0, 3);
